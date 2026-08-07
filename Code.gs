@@ -12,7 +12,7 @@
 
 const APP_SETTINGS = Object.freeze({
   TIME_ZONE: 'Asia/Manila',
-  CAPACITY: 10,
+  CAPACITY: 10, // fallback only; facilitator can change the live capacity in AppointmentSettings
   ENABLE_TODAY_TEST_DATE: false,
   OFFICIAL_EVENT_DATES: ['2026-08-07', '2026-08-12', '2026-08-13'],
   CLOSED_EVENT_DATES: ['2026-08-07'],
@@ -20,7 +20,7 @@ const APP_SETTINGS = Object.freeze({
 
   // Scalability controls. These values keep ordinary requests short and avoid
   // repeatedly reading the complete Registrations sheet.
-  SCHEMA_VERSION: '8',
+  SCHEMA_VERSION: '9',
   WRITE_LOCK_TIMEOUT_MS: 8000,
   ENABLE_STUDENT_ACTIVITY_LOG: false,
   ENABLE_FACILITATOR_ACTIVITY_LOG: true,
@@ -31,7 +31,8 @@ const APP_SETTINGS = Object.freeze({
     MESSAGES: 'Messages',
     SESSIONS: 'Sessions',
     ACTIVITY: 'ActivityLog',
-    SLOT_STATS: 'SlotStats'
+    SLOT_STATS: 'SlotStats',
+    APPOINTMENT_SETTINGS: 'AppointmentSettings'
   })
 });
 
@@ -69,7 +70,8 @@ const HEADERS = Object.freeze({
   Messages: ['id', 'studentId', 'studentIdNumber', 'legacyEmail', 'message', 'status', 'createdAt', 'reviewedAt', 'reviewedBy'],
   Sessions: ['token', 'email', 'deviceId', 'role', 'createdAt', 'expiresAt', 'active'],
   ActivityLog: ['id', 'actorEmail', 'action', 'studentId', 'details', 'createdAt'],
-  SlotStats: ['slotKey', 'date', 'slotId', 'count', 'lastSequence', 'rosterJson', 'updatedAt']
+  SlotStats: ['slotKey', 'date', 'slotId', 'count', 'lastSequence', 'rosterJson', 'updatedAt'],
+  AppointmentSettings: ['key', 'value', 'updatedAt', 'updatedBy']
 });
 
 let SPREADSHEET_INSTANCE_ = null;
@@ -128,7 +130,8 @@ function invokeApiAction_(action, args) {
     getFacilitatorBatchState: { fn: getFacilitatorBatchState, min: 4, max: 4 },
     facilitatorCallStudent: { fn: facilitatorCallStudent, min: 3, max: 3 },
     facilitatorUpdateStudentStatus: { fn: facilitatorUpdateStudentStatus, min: 4, max: 4 },
-    facilitatorReviewMessage: { fn: facilitatorReviewMessage, min: 3, max: 3 }
+    facilitatorReviewMessage: { fn: facilitatorReviewMessage, min: 3, max: 3 },
+    facilitatorUpdateAppointmentSettings: { fn: facilitatorUpdateAppointmentSettings, min: 3, max: 3 }
   };
 
   const route = routes[action];
@@ -181,6 +184,8 @@ function setupSystem(spreadsheetId) {
     });
   }
 
+  ensureAppointmentSettingsDefaults_();
+
   const rebuilt = rebuildOperationalIndexes();
   properties.setProperty('SETUP_SCHEMA_VERSION', APP_SETTINGS.SCHEMA_VERSION);
   invalidateConfigCache_();
@@ -192,7 +197,7 @@ function setupSystem(spreadsheetId) {
     spreadsheetUrl: spreadsheet.getUrl(),
     indexedRegistrations: rebuilt.registrations,
     databaseSyncTriggers: syncTriggers,
-    message: 'Fresh-login responsive system is ready. Replace the demo facilitator ID and password in Config before production use.'
+    message: 'Dynamic appointment settings are ready. Facilitators can now set capacity and open dates from the portal.'
   };
 }
 
@@ -659,15 +664,15 @@ function getFacilitatorBatchState(token, deviceId, dateKey, slotId) {
   const cleanDateKey = normalizeDateKey_(dateKey);
   const cleanSlotId = normalizeSlotId_(slotId);
   const slot = TIME_SLOTS.find(item => item.id === cleanSlotId);
-  if (!getEventDates_().includes(cleanDateKey) || !slot) {
+  const allRegistrations = readObjects_(APP_SETTINGS.SHEETS.REGISTRATIONS).map(normalizeRegistrationRecord_);
+  if (!getEventDates_(allRegistrations).includes(cleanDateKey) || !slot) {
     throw new Error('Select a valid facilitator date and batch.');
   }
 
-  const students = readObjects_(APP_SETTINGS.SHEETS.REGISTRATIONS)
-    .map(normalizeRegistrationRecord_)
+  const students = allRegistrations
     .filter(row => scheduleMatches_(row, cleanDateKey, cleanSlotId) && row.status !== 'cancelled')
     .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0))
-    .slice(0, APP_SETTINGS.CAPACITY)
+    .slice(0, 200)
     .map(facilitatorStudentView_);
 
   return {
@@ -751,6 +756,36 @@ function facilitatorReviewMessage(token, deviceId, messageId) {
   bumpDataVersion_();
   logActivity_(auth.facilitator.email, 'REVIEW_MESSAGE', message.studentId, message.id);
   return { ok: true, message: facilitatorMessageView_(message), dataVersion: getDataVersion_() };
+}
+
+function facilitatorUpdateAppointmentSettings(token, deviceId, payload) {
+  ensureReady_();
+  const auth = requireFacilitatorSession_(token, deviceId);
+  const requested = payload || {};
+  const capacity = Math.floor(Number(requested.capacity));
+  if (!Number.isFinite(capacity) || capacity < 1 || capacity > 200) {
+    throw new Error('Capacity must be a whole number from 1 to 200 students per hour.');
+  }
+
+  const dates = Array.from(new Set((Array.isArray(requested.openEventDates) ? requested.openEventDates : [])
+    .map(normalizeDateKey_)
+    .filter(Boolean))).sort();
+  if (!dates.length) throw new Error('Add at least one open appointment date.');
+  const today = todayKey_();
+  if (dates.some(date => date < today)) throw new Error('Past dates cannot be opened for new appointments.');
+
+  const actor = auth.facilitator.email || auth.facilitator.id || 'facilitator';
+  upsertAppointmentSetting_('capacity', String(capacity), actor);
+  upsertAppointmentSetting_('openEventDates', JSON.stringify(dates), actor);
+  bumpDataVersion_();
+  logActivity_(actor, 'UPDATE_APPOINTMENT_SETTINGS', '', JSON.stringify({ capacity: capacity, openEventDates: dates }));
+
+  return {
+    ok: true,
+    settings: { capacity: capacity, openEventDates: dates },
+    config: getPublicBootstrap(),
+    dataVersion: getDataVersion_()
+  };
 }
 
 /** Add or update a facilitator account without manually editing the Config sheet. */
@@ -1002,17 +1037,78 @@ function facilitatorMessageView_(message) {
   return copy;
 }
 
-function getEventDates_() {
+function ensureAppointmentSettingsDefaults_() {
+  const rows = readObjects_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS);
+  const hasCapacity = rows.some(row => String(row.key || '').trim() === 'capacity');
+  const hasOpenDates = rows.some(row => String(row.key || '').trim() === 'openEventDates');
+  const fallbackOpenDates = APP_SETTINGS.OFFICIAL_EVENT_DATES
+    .map(normalizeDateKey_)
+    .filter(Boolean)
+    .filter(date => !(APP_SETTINGS.CLOSED_EVENT_DATES || []).map(normalizeDateKey_).includes(date));
+  if (!hasCapacity) appendObject_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS, {
+    key: 'capacity', value: String(APP_SETTINGS.CAPACITY), updatedAt: new Date().toISOString(), updatedBy: 'setupSystem'
+  });
+  if (!hasOpenDates) appendObject_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS, {
+    key: 'openEventDates', value: JSON.stringify(fallbackOpenDates), updatedAt: new Date().toISOString(), updatedBy: 'setupSystem'
+  });
+}
+
+function readAppointmentSettings_() {
+  const rows = readObjects_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS);
+  const map = Object.create(null);
+  rows.forEach(row => { map[String(row.key || '').trim()] = row; });
+  const parsedCapacity = Number(map.capacity && map.capacity.value);
+  const capacity = Number.isFinite(parsedCapacity) && parsedCapacity >= 1 && parsedCapacity <= 200
+    ? Math.floor(parsedCapacity)
+    : APP_SETTINGS.CAPACITY;
+
+  let openEventDates = [];
+  try {
+    const raw = map.openEventDates ? JSON.parse(String(map.openEventDates.value || '[]')) : [];
+    if (Array.isArray(raw)) openEventDates = raw.map(normalizeDateKey_).filter(Boolean);
+  } catch (_) {}
+  if (!openEventDates.length) {
+    openEventDates = APP_SETTINGS.OFFICIAL_EVENT_DATES
+      .map(normalizeDateKey_)
+      .filter(Boolean)
+      .filter(date => !(APP_SETTINGS.CLOSED_EVENT_DATES || []).map(normalizeDateKey_).includes(date));
+  }
+  openEventDates = Array.from(new Set(openEventDates)).sort();
+  return { capacity: capacity, openEventDates: openEventDates };
+}
+
+function getCapacity_() {
+  return readAppointmentSettings_().capacity;
+}
+
+function upsertAppointmentSetting_(key, value, actor) {
+  const rows = readObjects_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS);
+  const existing = rows.find(row => String(row.key || '').trim() === key);
+  const object = { key: key, value: String(value), updatedAt: new Date().toISOString(), updatedBy: String(actor || '') };
+  if (existing) updateObject_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS, existing._row, object);
+  else appendObject_(APP_SETTINGS.SHEETS.APPOINTMENT_SETTINGS, object);
+}
+
+function getEventDates_(registrations) {
+  const settings = readAppointmentSettings_();
   const dates = APP_SETTINGS.OFFICIAL_EVENT_DATES.slice();
+  settings.openEventDates.forEach(date => dates.push(date));
+  (Array.isArray(registrations) ? registrations : []).forEach(row => {
+    const date = normalizeDateKey_(row.date);
+    if (date) dates.push(date);
+  });
   if (APP_SETTINGS.ENABLE_TODAY_TEST_DATE) dates.push(todayKey_());
-  return Array.from(new Set(dates)).sort();
+  return Array.from(new Set(dates.map(normalizeDateKey_).filter(Boolean))).sort();
 }
 
 function buildPublicConfig_() {
   const now = new Date();
-  const eventDates = getEventDates_();
-  const closedDates = new Set((APP_SETTINGS.CLOSED_EVENT_DATES || []).map(normalizeDateKey_));
   const registrations = readObjects_(APP_SETTINGS.SHEETS.REGISTRATIONS).map(normalizeRegistrationRecord_);
+  const appointmentSettings = readAppointmentSettings_();
+  const capacity = appointmentSettings.capacity;
+  const openDates = new Set(appointmentSettings.openEventDates);
+  const eventDates = getEventDates_(registrations);
+  const closedDates = new Set(eventDates.filter(date => !openDates.has(date)));
 
   const availability = eventDates.map(dateKey => {
     const dateClosed = closedDates.has(dateKey);
@@ -1020,8 +1116,8 @@ function buildPublicConfig_() {
       const count = countInSlot_(registrations, dateKey, slot.id);
       const started = slotStart_(dateKey, slot) <= now;
       const ended = slotEnd_(dateKey, slot) <= now;
-      const full = dateClosed || count >= APP_SETTINGS.CAPACITY;
-      const remaining = (full || started) ? 0 : Math.max(0, APP_SETTINGS.CAPACITY - count);
+      const full = dateClosed || count >= capacity;
+      const remaining = (full || started) ? 0 : Math.max(0, capacity - count);
       return {
         id: slot.id,
         count: count,
@@ -1031,7 +1127,7 @@ function buildPublicConfig_() {
         passed: started,
         closed: dateClosed,
         full: full,
-        available: !dateClosed && !started && count < APP_SETTINGS.CAPACITY
+        available: !dateClosed && !started && count < capacity
       };
     });
 
@@ -1048,7 +1144,8 @@ function buildPublicConfig_() {
   return {
     serverNow: now.toISOString(),
     today: todayKey_(),
-    capacity: APP_SETTINGS.CAPACITY,
+    capacity: capacity,
+    openEventDates: appointmentSettings.openEventDates.slice(),
     eventDates: eventDates,
     closedEventDates: Array.from(closedDates),
     timeSlots: TIME_SLOTS.map(slot => Object.assign({}, slot)),
@@ -1095,7 +1192,7 @@ function buildStudentBatch_(student, registrations) {
     .map(normalizeRegistrationRecord_)
     .filter(row => scheduleMatches_(row, normalizedStudent.date, normalizedStudent.slotId) && row.status !== 'cancelled')
     .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0))
-    .slice(0, APP_SETTINGS.CAPACITY)
+    .slice(0, 200)
     .map(row => batchMemberView_(row, normalizedStudent.id));
 }
 
@@ -1119,12 +1216,12 @@ function validateCandidate_(candidate) {
 function assertSlotAvailable_(registrations, dateKey, slotId, excludeStudentId) {
   const cleanDateKey = normalizeDateKey_(dateKey);
   const cleanSlotId = normalizeSlotId_(slotId);
-  const eventDates = getEventDates_();
+  const appointmentSettings = readAppointmentSettings_();
+  const eventDates = appointmentSettings.openEventDates.slice();
   const slot = TIME_SLOTS.find(item => item.id === cleanSlotId);
   if (!eventDates.includes(cleanDateKey) || !slot) throw new Error('Select a valid event date and time.');
-  if ((APP_SETTINGS.CLOSED_EVENT_DATES || []).map(normalizeDateKey_).includes(cleanDateKey)) throw new Error('That event date is full and no longer accepts registrations.');
   if (slotStart_(cleanDateKey, slot) <= new Date()) throw new Error('That schedule has already passed. Choose another time.');
-  if (countInSlot_(registrations, cleanDateKey, cleanSlotId, excludeStudentId) >= APP_SETTINGS.CAPACITY) {
+  if (countInSlot_(registrations, cleanDateKey, cleanSlotId, excludeStudentId) >= appointmentSettings.capacity) {
     throw new Error('That hourly batch is already full. Choose another time.');
   }
 }
@@ -1365,10 +1462,10 @@ function writeSlotStat_(stat) {
 }
 
 function parseRoster_(value) {
-  if (Array.isArray(value)) return value.slice(0, Math.max(APP_SETTINGS.CAPACITY, 200));
+  if (Array.isArray(value)) return value.slice(0, Math.max(getCapacity_(), 200));
   try {
     const parsed = JSON.parse(String(value || '[]'));
-    return Array.isArray(parsed) ? parsed.slice(0, Math.max(APP_SETTINGS.CAPACITY, 200)) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, Math.max(getCapacity_(), 200)) : [];
   } catch (_) {
     return [];
   }
@@ -1432,14 +1529,14 @@ function assertScheduleSelection_(dateKey, slotId) {
   const cleanDateKey = normalizeDateKey_(dateKey);
   const cleanSlotId = normalizeSlotId_(slotId);
   const slot = TIME_SLOTS.find(item => item.id === cleanSlotId);
-  if (!getEventDates_().includes(cleanDateKey) || !slot) throw new Error('Select a valid event date and time.');
-  if ((APP_SETTINGS.CLOSED_EVENT_DATES || []).map(normalizeDateKey_).includes(cleanDateKey)) throw new Error('That event date is full and no longer accepts registrations.');
+  const settings = readAppointmentSettings_();
+  if (!settings.openEventDates.includes(cleanDateKey) || !slot) throw new Error('That event date is not open for appointments.');
   if (slotStart_(cleanDateKey, slot) <= new Date()) throw new Error('That schedule has already passed. Choose another time.');
 }
 
 function assertSlotStatAvailable_(stat, dateKey, slotId) {
   assertScheduleSelection_(dateKey, slotId);
-  if (Number(stat && stat.count || 0) >= APP_SETTINGS.CAPACITY) {
+  if (Number(stat && stat.count || 0) >= getCapacity_()) {
     throw new Error('That hourly batch is already full. Choose another time.');
   }
 }
@@ -1507,7 +1604,7 @@ function rebuildOperationalIndexes(existingRegistrations) {
   const registrations = Array.isArray(existingRegistrations) ? existingRegistrations : readObjects_(APP_SETTINGS.SHEETS.REGISTRATIONS);
   const map = new Map();
 
-  getEventDates_().forEach(dateKey => {
+  getEventDates_(registrations).forEach(dateKey => {
     TIME_SLOTS.forEach(slot => {
       const stat = defaultSlotStat_(dateKey, slot.id);
       map.set(stat.slotKey, stat);
