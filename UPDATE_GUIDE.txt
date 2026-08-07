@@ -1,0 +1,85 @@
+WADHWANI REGISTRATION — ADMIN DASHBOARD V6
+==========================================
+
+FILES INCLUDED
+--------------
+1. index.html
+2. script.js
+3. style.css
+4. Code.gs
+5. _headers
+
+MAIN V6 CHANGES
+---------------
+• Facilitator date buttons fetch the newest Registrations and Messages data.
+• Morning/Afternoon buttons only change the visible part of the day. They do not fetch.
+• Hourly time cards only change the selected batch. They do not fetch.
+• The newest facilitator data is fetched only when:
+  - a date button is clicked;
+  - Refresh all is clicked;
+  - Call/Remind is used;
+  - Ongoing is used;
+  - Complete is used;
+  - No show is used;
+  - the offline Retry flow reconnects after a network failure.
+• Facilitator names now display their course abbreviation, such as:
+  Juan Dela Cruz – BSED
+• Selecting Afternoon activates a warm sunset/afternoon visual theme.
+• Admin navigation now contains Appointments and Dashboard.
+• Messages use a floating message button instead of a sidebar menu item.
+• Dashboard includes:
+  - total completed appointments;
+  - completion rate;
+  - leading college;
+  - pending count;
+  - completed-registration graph by college;
+  - smart leading-college insight;
+  - busiest date and time batch.
+• Message Center now shows student Call/Remind responses in this format:
+  Name – Course
+  Scheduled time / Date
+  Responded message: On the Way
+• Rescheduling requests remain available below the Call/Remind responses.
+• Student and facilitator browser sessions are still not stored in localStorage or sessionStorage.
+• CSS and JavaScript continue to load with cache-busting query values.
+
+FACILITATOR REFRESH RULE
+------------------------
+Date click = fetch latest records.
+Morning/Afternoon click = local view change only.
+Hourly time-card click = local view change only.
+Dashboard and Messages menu changes = local view change only.
+
+DEPLOYMENT
+----------
+1. Open the Apps Script project connected to the database spreadsheet.
+2. Replace the existing Apps Script source with Code.gs from this package.
+3. Run setupSystem() once if this database has not yet been upgraded to the fresh-login schema.
+4. Confirm that the Config sheet contains:
+   facilitatorId | name | password | active | legacyEmail
+5. Deploy a NEW Web App version.
+6. Copy the new /exec URL.
+7. Open script.js and replace APPS_SCRIPT_WEB_APP_URL with the new /exec URL.
+8. Upload these files together to the website host:
+   index.html
+   script.js
+   style.css
+   _headers
+9. Clear or replace the old deployed website files. The new files already use no-store headers and fresh query values.
+
+TEST CHECKLIST
+--------------
+1. Log in using a facilitator ID and password from Config.
+2. Click a date. Confirm that the loading state appears and the latest records are loaded.
+3. Click Morning, Afternoon, and several hourly cards. Confirm that they switch immediately without loading.
+4. Confirm that Afternoon changes the interface to sunset colors.
+5. Confirm that names show a course abbreviation.
+6. Use Call/Remind, Ongoing, Complete, and No show. Confirm that each action reloads the latest records afterward.
+7. Open Dashboard and confirm that completed registrations are grouped by college.
+8. Let a student answer a reminder, then click Refresh all or a date.
+9. Open the floating Messages button and confirm that the response appears.
+10. Test on desktop and mobile facilitator layouts.
+
+IMPORTANT
+---------
+The Dashboard is calculated from the facilitator data currently loaded from Google Sheets. Use a date button or Refresh all before reviewing the newest graph values.
