@@ -732,7 +732,7 @@
         return;
       }
       $('#registerFromLoginPanel').classList.remove('d-none');
-      showLoginFeedback('info', 'No student or facilitator account was found for this ID.');
+      showLoginFeedback('info', 'No Registration Found for this ID.');
     } catch (error) {
       showLoginFeedback('danger', error.message);
       if (isNetworkFailure(error)) showOfflineModal();
