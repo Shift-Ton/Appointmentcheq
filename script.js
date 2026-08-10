@@ -84,7 +84,7 @@
     updateSoundButton();
     setPortalControls('none');
     showLogin(true);
-    setLoading(true, 'Reading the newest configuration and seat counts…', 'Connecting without browser cache');
+    setLoading(true, 'Reading the newest configuration and seat counts…', 'Connecting');
 
     try {
       if (!navigator.onLine) {
