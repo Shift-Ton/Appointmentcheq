@@ -1,0 +1,197 @@
+WADHWANI REGISTRATION — BACKGROUND PUSH + REMEMBERED STUDENT V12
+=============================================================
+
+WHAT V12 CHANGES
+-------------
+1. REQUIRED PWA INSTALLATION
+   - The normal browser page remains blocked until Wadhwani is installed and opened in standalone/app mode.
+   - Chromium browsers show a staged installation progress indicator.
+   - After the browser reports installation accepted/completed, an Open Wadhwani button is shown.
+   - iPhone/iPad and browsers without a programmable install prompt receive manual Add to Home Screen instructions.
+
+2. REMEMBER REGISTERED STUDENT ON THE INSTALLED DEVICE
+   - After a registered student successfully signs in, the installed Wadhwani app remembers that Student ID in local browser/app storage.
+   - Closing the PWA, switching apps, or reopening Wadhwani no longer asks that registered student to sign in again.
+   - On every reopen/return, Wadhwani uses the remembered Student ID only to fetch the newest server record; it does NOT cache the student's status, schedule, or batch data.
+   - The latest server status automatically routes to Pending/Called, Ongoing, or Completed.
+   - Tapping the Wadhwani Logout button removes the remembered Student ID from that device.
+   - Clearing browser/app data or uninstalling/reinstalling may also remove the remembered Student ID, requiring one new login.
+   - Facilitator login behavior is unchanged.
+
+3. 10-MINUTE SCHEDULE REMINDER
+   - While Wadhwani is open, the existing flight-attendant-style chime, polite voice reminder, modal, and vibration start in the 10-minute window before the selected batch.
+   - V12 continues using the Apps Script one-minute trigger from V11. When Firebase Cloud Messaging is configured, that trigger sends a system push to registered student devices during the 10-minute window.
+   - One schedule push is sent per Student ID + date + time slot. Rescheduling creates a new reminder key.
+
+4. FACILITATOR CALL / REMIND PUSH
+   - Call/Remind still updates the student's status immediately.
+   - V12 continues sending an FCM system push to that student's registered device(s).
+   - Opening the notification opens/focuses Wadhwani. A remembered registered student is restored automatically and the newest Called status opens the normal response/alarm modal without another login.
+
+5. COMPLETED STUDENTS
+   - When a facilitator marks a student Completed, all stored background push targets for that Student ID are disabled.
+   - The Completed page continues to show device-specific instructions explaining how the student can uninstall/remove Wadhwani.
+
+NEW FILES / BACKEND DATA
+------------------------
+Frontend/PWA:
+- firebase-config.js
+- manifest.webmanifest
+- sw.js
+- icons/icon-180.png
+- icons/icon-192.png
+- icons/icon-512.png
+
+Google Sheets created by setupSystem():
+- PushSubscriptions
+- PushLog
+
+V12 backend schema version: 11 (no backend schema change from V11)
+
+IMPORTANT: BACKGROUND PUSH NEEDS FIREBASE CONFIGURATION
+-------------------------------------------------------
+The local alarm works without Firebase while the installed app is active.
+Closed-app/background system notifications require Firebase Cloud Messaging (FCM).
+The package intentionally does NOT contain your Firebase credentials.
+
+PART A — CREATE / CONFIGURE FIREBASE WEB APP
+--------------------------------------------
+1. Open Firebase Console and create/select a project.
+2. Add a Web App to that project.
+3. Open Project Settings and copy the Web App configuration values.
+4. Open firebase-config.js and fill:
+     apiKey
+     authDomain
+     projectId
+     storageBucket
+     messagingSenderId
+     appId
+5. In Firebase Cloud Messaging / Web Push certificates, create or use a Web Push VAPID key.
+6. Paste the PUBLIC VAPID public key into firebase-config.js -> vapidKey.
+7. Change:
+     enabled: false
+   to:
+     enabled: true
+
+firebase-config.js is PUBLIC website configuration. NEVER put a service-account private key in this file.
+
+PART B — CONFIGURE APPS SCRIPT SERVER CREDENTIALS
+-------------------------------------------------
+1. In Firebase/Google Cloud, create/download a service-account JSON key for the Firebase project.
+2. NEVER upload that JSON/private key to Netlify or your website.
+3. In the Apps Script editor, temporarily create a helper like this:
+
+   function setupFirebaseOnce() {
+     const serviceAccount = {
+       "project_id": "YOUR_PROJECT_ID",
+       "client_email": "YOUR_SERVICE_ACCOUNT_EMAIL",
+       "private_key": "-----BEGIN PRIVATE KEY-----\\nYOUR_KEY_HERE\\n-----END PRIVATE KEY-----\\n"
+     };
+     Logger.log(configureFirebaseMessaging(serviceAccount));
+   }
+
+4. Replace the three placeholder values with values from the downloaded service-account JSON.
+5. Run setupFirebaseOnce() once and authorize Apps Script.
+6. After it succeeds, DELETE setupFirebaseOnce() and its pasted private key from Code.gs.
+
+configureFirebaseMessaging() stores only these server secrets in Apps Script Script Properties:
+- FCM_PROJECT_ID
+- FCM_CLIENT_EMAIL
+- FCM_PRIVATE_KEY
+
+To remove them later, run clearFirebaseMessagingConfig().
+
+PART C — UPGRADE THE DATABASE / TRIGGERS
+----------------------------------------
+1. If your V11 Code.gs is already deployed and working, no backend replacement is required for the remembered-login change. The included Code.gs is the same schema-11 backend for convenience.
+2. Save the Apps Script project.
+3. Run setupSystem() ONCE.
+4. Authorize the requested Spreadsheet / trigger / external-request permissions.
+5. setupSystem() will:
+   - upgrade schema to 11;
+   - create PushSubscriptions and PushLog;
+   - preserve existing Registrations rows;
+   - rebuild existing operational indexes;
+   - recreate database edit/change triggers;
+   - install processScheduledPushReminders every 1 minute.
+6. Deploy a NEW Apps Script Web App version.
+7. Copy the new /exec URL into APPS_SCRIPT_WEB_APP_URL at the top of script.js if the URL changed.
+
+PART D — UPLOAD THE FRONTEND
+----------------------------
+Upload all of these V12 frontend files together at the website root:
+- index.html
+- script.js
+- style.css
+- _headers
+- firebase-config.js
+- manifest.webmanifest
+- sw.js
+- icons/ folder
+
+The website must use HTTPS for service-worker/PWA notification features.
+
+STUDENT FLOW
+------------
+1. Student opens the normal website.
+2. Install gate blocks Login.
+3. Student installs Wadhwani and opens the installed app.
+4. Login page appears only when this installed device does not yet remember a registered student.
+5. Registered student enters Student ID once; Wadhwani remembers it on this device.
+6. Student enables reminder/system notifications when prompted.
+7. Device's FCM target is associated with that Student ID in PushSubscriptions.
+8. Student may close/leave the app. The push target and remembered Student ID remain on the device.
+9. Approximately 10 minutes before the appointment, the Apps Script trigger can send a system notification.
+10. Call/Remind can send an immediate system notification.
+11. When Wadhwani is reopened, it automatically fetches the remembered student's latest server record and opens the correct page without another login.
+12. If Completed, reopening goes directly to the Completed / uninstall-instructions page.
+13. If the student taps Logout, the remembered Student ID is removed and the next open requires login.
+
+TEST CHECKLIST
+--------------
+A. Installation
+[ ] Open website in Chrome while not installed -> Login is blocked.
+[ ] Install button becomes available when browser install prompt is ready.
+[ ] Progress UI advances through Prepare / Confirm / Ready.
+[ ] Installed Wadhwani opens in standalone mode and shows Login.
+
+B. Remembered student session
+[ ] Login once as a registered student.
+[ ] Close Wadhwani completely, then reopen it -> the latest student page opens automatically without entering Student ID again.
+[ ] Switch to another app and return -> the student remains recognized and the latest status is refreshed.
+[ ] Facilitator marks the student Ongoing -> returning/reopening routes to the Ongoing page.
+[ ] Facilitator marks the student Completed -> returning/reopening routes to Completed + uninstall instructions.
+[ ] Tap Logout -> Student ID is forgotten and the next open shows Login.
+
+C. Background push
+[ ] firebase-config.js enabled and filled correctly.
+[ ] configureFirebaseMessaging() completed on Apps Script server.
+[ ] setupSystem() created PushSubscriptions and PushLog.
+[ ] Student logs in and enables alerts -> PushSubscriptions gets an enabled row.
+[ ] Close/leave the PWA.
+[ ] Facilitator Call/Remind -> phone receives Wadhwani system notification.
+[ ] Tap notification -> Wadhwani opens; remembered student is restored automatically; Called alarm/response modal appears.
+
+D. 10-minute reminder
+[ ] Use a test schedule near the current time.
+[ ] processScheduledPushReminders trigger exists in Apps Script Triggers.
+[ ] Inside the 10-minute window -> one schedule notification arrives.
+[ ] PushLog contains the schedule reminder key after successful delivery.
+
+E. Completed
+[ ] Facilitator marks student Completed.
+[ ] PushSubscriptions rows for that Student ID become disabled.
+[ ] Reopening Wadhwani automatically shows only Completed page + uninstall instructions for the remembered student.
+
+LIMITATIONS TO EXPECT
+---------------------
+- Browsers/operating systems control installation and notification permission. The website cannot silently approve either permission.
+- The install progress shown by Wadhwani is staged UI progress; browsers do not provide an exact download/install percentage.
+- When the PWA is fully closed, the phone uses its system notification sound/vibration. Continuous flight-attendant speech/chime cannot reliably run from a closed web app. Once the student opens Wadhwani, the remembered student is restored and the in-app chime/voice/modal can run normally.
+- "Open Wadhwani" after installation depends on the browser/OS handing the URL to the installed app. If it stays in the browser tab, open the Wadhwani icon from the Home Screen/app launcher.
+
+REMEMBERED LOGIN PRIVACY NOTE
+-----------------------------
+- V12 stores only the normalized Student ID needed to identify the already registered student on that installed device.
+- Status, schedule, batch list, queue state, and facilitator actions are fetched fresh from the server.
+- Use Logout before handing the phone to another student.
