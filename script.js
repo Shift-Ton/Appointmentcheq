@@ -6,7 +6,7 @@
    * Paste the deployed Apps Script Web App /exec URL below.
    * Example: https://script.google.com/macros/s/AKfycb.../exec
    */
-  const APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz-fvhiUUYetONH67rp5kKtxjXkb66EkelaZmMO82qQyy_-VZZQJ4hT9GP-g4a_oKKA/exec';
+  const APPS_SCRIPT_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz7Uq7UiGNtVXwLLMJfM_zrurH9u19yvuNap8eYM88B1LM2ATXWnfNozaPAe8KkVDh_/exec';
   const API_TIMEOUT_MS = 60000;
   const STUDENT_REMINDER_CHECK_MS = 3000;
   const REMINDER_CHECK_JITTER_MS = 1500;
