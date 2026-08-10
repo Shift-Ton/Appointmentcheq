@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="theme-color" content="#0f6754">
+  <meta name="description" content="Wadhwani Student ID registration, scheduling, and facilitator queue system">
+  <title>Wadhwani Registration · Admin Dashboard</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link id="appStylesheet" rel="stylesheet">
+  <script>document.getElementById('appStylesheet').href = 'style.css?fresh=' + Date.now();</script>
+  <noscript>
+    <style>
+      body.browser-check-pending #mainApplication { visibility: visible !important; }
+    </style>
+  </noscript>
+</head>
+<body class="browser-check-pending botanical-theme">
+  <div class="ambient-scene" aria-hidden="true">
+    <span class="ambient-curve ambient-curve-one"></span>
+    <span class="ambient-curve ambient-curve-two"></span>
+    <span class="ambient-star ambient-star-one">✦</span>
+    <span class="ambient-star ambient-star-two">✦</span>
+    <div class="floating-friend floating-friend-mint">
+      <span class="friend-ear friend-ear-left"></span><span class="friend-ear friend-ear-right"></span>
+      <span class="friend-eye friend-eye-left"></span><span class="friend-eye friend-eye-right"></span>
+      <span class="friend-cheek friend-cheek-left"></span><span class="friend-cheek friend-cheek-right"></span>
+      <span class="friend-smile"></span>
+    </div>
+    <div class="floating-friend floating-friend-lilac">
+      <span class="friend-ear friend-ear-left"></span><span class="friend-ear friend-ear-right"></span>
+      <span class="friend-eye friend-eye-left"></span><span class="friend-eye friend-eye-right"></span>
+      <span class="friend-cheek friend-cheek-left"></span><span class="friend-cheek friend-cheek-right"></span>
+      <span class="friend-smile"></span>
+    </div>
+  </div>
+  <!-- Messenger / Facebook browser notice -->
+  <section class="browser-instruction-screen d-none" id="browserInstruction" role="dialog" aria-modal="true" aria-labelledby="browserInstructionTitle" aria-describedby="browserInstructionMessage" tabindex="-1">
+    <div class="browser-instruction-card compact-browser-card">
+      <div class="browser-instruction-icon" aria-hidden="true"><i class="bi bi-browser-chrome"></i></div>
+      <div class="browser-instruction-heading">
+        <span class="eyebrow">BROWSER NOTICE</span>
+        <h1 id="browserInstructionTitle">Open in Chrome</h1>
+        <p id="browserInstructionMessage">Use Chrome for the best login and alert experience.</p>
+      </div>
+      <div class="browser-instruction-actions">
+        <button class="btn btn-primary btn-lg d-none" id="browserOpenChromeButton" type="button"><i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>Open Chrome</button>
+        <button class="btn btn-outline-primary btn-lg" id="browserCopyLinkButton" type="button"><i class="bi bi-copy me-2" aria-hidden="true"></i>Copy Link</button>
+      </div>
+      <p class="browser-copy-confirmation" id="browserCopyConfirmation" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="offline-overlay d-none" id="offlineModal" role="dialog" aria-modal="true" aria-labelledby="offlineTitle" aria-describedby="offlineMessage">
+    <div class="offline-card">
+      <div class="offline-character-scene" aria-hidden="true">
+        <span class="offline-spark offline-spark-one">✦</span>
+        <span class="offline-spark offline-spark-two">✦</span>
+        <div class="offline-cloud offline-cloud-back"></div>
+        <div class="offline-cloud offline-cloud-front"></div>
+        <div class="offline-mascot">
+          <span class="offline-ear offline-ear-left"></span>
+          <span class="offline-ear offline-ear-right"></span>
+          <span class="offline-face">
+            <span class="offline-eye offline-eye-left"></span>
+            <span class="offline-eye offline-eye-right"></span>
+            <span class="offline-cheek offline-cheek-left"></span>
+            <span class="offline-cheek offline-cheek-right"></span>
+            <span class="offline-mouth"></span>
+          </span>
+          <span class="offline-arm offline-arm-left"></span>
+          <span class="offline-arm offline-arm-right"></span>
+          <span class="offline-wifi"><i></i><i></i><i></i><b>!</b></span>
+        </div>
+        <span class="offline-shadow"></span>
+      </div>
+      <span class="eyebrow">CONNECTION PAUSED</span>
+      <h1 id="offlineTitle">No internet connection</h1>
+      <p id="offlineMessage">Our little helper cannot reach the registration database. Reconnect to the internet, then try again to load the latest records.</p>
+      <button class="btn btn-primary btn-lg w-100" id="offlineRetryButton" type="button"><i class="bi bi-arrow-clockwise me-2"></i>Try again</button>
+      <small><i class="bi bi-shield-check me-1"></i>No login information is saved in this browser.</small>
+    </div>
+  </section>
+
+  <div class="app-loading" id="appLoading" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="appLoadingTitle" aria-describedby="appLoadingMessage">
+    <div class="app-loading-card">
+      <div class="loading-character-scene" aria-hidden="true">
+        <span class="loading-spark loading-spark-one">✦</span>
+        <span class="loading-spark loading-spark-two">✦</span>
+        <div class="loading-character-shadow"></div>
+        <div class="loading-character">
+          <span class="loading-ear loading-ear-left"></span>
+          <span class="loading-ear loading-ear-right"></span>
+          <span class="loading-character-body">
+            <span class="loading-eye loading-eye-left"></span>
+            <span class="loading-eye loading-eye-right"></span>
+            <span class="loading-cheek loading-cheek-left"></span>
+            <span class="loading-cheek loading-cheek-right"></span>
+            <span class="loading-smile"></span>
+            <span class="loading-arm loading-arm-left"></span>
+            <span class="loading-arm loading-arm-right"></span>
+          </span>
+          <span class="loading-paper"><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <div class="loading-copy">
+        <span class="eyebrow">PLEASE WAIT</span>
+        <strong id="appLoadingTitle">Connecting to registration database</strong>
+        <small id="appLoadingMessage">Our little helper is checking the latest records.</small>
+        <span class="loading-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-shell" id="mainApplication">
+    <header class="topbar">
+      <button class="brand" id="brandHomeButton" type="button" aria-label="Home">
+        <span class="brand-mark">WR</span>
+        <span><strong>Wadhwani Registration</strong><small id="appContext">Student scheduling</small></span>
+      </button>
+      <div class="topbar-actions">
+        <span class="live-pill is-idle portal-control d-none" id="liveSyncPill"><span class="live-dot"></span><span id="liveSyncText">Ready</span></span>
+        <button class="icon-btn portal-control d-none" id="soundButton" type="button" aria-label="Enable volume alerts" title="Volume alerts"><i class="bi bi-volume-mute"></i></button>
+        <button class="icon-btn portal-control d-none" id="topLogoutButton" type="button" aria-label="Log out" title="Log out"><i class="bi bi-box-arrow-right"></i></button>
+        <button class="profile-btn d-none" id="facilitatorProfileButton" type="button"><i class="bi bi-person-badge"></i><span id="facilitatorNameTop">Facilitator</span></button>
+      </div>
+    </header>
+
+    <main>
+      <section class="screen auth-screen" id="loginScreen">
+        <div class="auth-layout">
+          <article class="auth-card surface">
+            <div class="auth-character" aria-hidden="true">
+              <span class="auth-character-ear auth-character-ear-left"></span>
+              <span class="auth-character-ear auth-character-ear-right"></span>
+              <span class="auth-character-face"><i></i><i></i><b></b></span>
+              <span class="auth-character-card"><i class="bi bi-person-vcard"></i></span>
+            </div>
+            <div class="auth-heading">
+              <span class="eyebrow">SECURE PORTAL</span>
+              <h1>Enter your Student ID</h1>
+              <p>Student and facilitator access.</p>
+            </div>
+
+            <form id="loginForm" novalidate>
+              <label class="form-label" for="loginStudentId">Student ID number <span>*</span></label>
+              <div class="student-id-field auth-id-field">
+                <i class="bi bi-person-vcard" aria-hidden="true"></i>
+                <input class="form-control form-control-lg" id="loginStudentId" name="loginStudentId" type="text" inputmode="numeric" autocomplete="off" maxlength="15" pattern="[0-9]{3}-[0-9]{4}-[0-9]{6}" placeholder="001-2023-001929" required>
+              </div>
+              <div class="form-text">Format: 001-2023-001929</div>
+              <button class="btn btn-primary btn-lg w-100 mt-3" id="loginSubmitButton" type="submit"><i class="bi bi-box-arrow-in-right me-2"></i>Continue</button>
+            </form>
+
+            <div class="login-feedback d-none" id="loginFeedback" aria-live="polite"></div>
+
+            <form class="facilitator-password-panel d-none" id="facilitatorPasswordForm" novalidate>
+              <div class="facilitator-match-banner">
+                <span><i class="bi bi-shield-lock"></i></span>
+                <div><small>Facilitator ID matched</small><strong id="matchedFacilitatorName">Authorized facilitator</strong></div>
+              </div>
+              <input id="matchedFacilitatorId" type="hidden">
+              <label class="form-label" for="facilitatorPassword">Password <span>*</span></label>
+              <div class="password-field">
+                <i class="bi bi-key" aria-hidden="true"></i>
+                <input class="form-control form-control-lg" id="facilitatorPassword" type="password" autocomplete="current-password" placeholder="Enter Config password" required>
+                <button type="button" id="toggleFacilitatorPassword" aria-label="Show password"><i class="bi bi-eye"></i></button>
+              </div>
+              <button class="btn btn-primary btn-lg w-100 mt-3" id="facilitatorLoginButton" type="submit"><i class="bi bi-person-badge me-2"></i>Log in as facilitator</button>
+              <button class="btn btn-light w-100 mt-2" id="changeLoginIdButton" type="button"><i class="bi bi-arrow-left me-1"></i>Use another ID</button>
+            </form>
+
+            <div class="register-from-login d-none" id="registerFromLoginPanel">
+              <div><span><i class="bi bi-person-plus"></i></span><div><strong>Student ID not found</strong><small>You may create a new registration using this ID.</small></div></div>
+              <button class="btn btn-outline-primary w-100" id="registerFromLoginButton" type="button"><i class="bi bi-pencil-square me-2"></i>Register this Student ID</button>
+            </div>
+
+          </article>
+        </div>
+      </section>
+
+      <section class="screen d-none" id="studentDeviceScreen">
+        <div class="device-gate-wrap">
+          <article class="device-gate-card surface">
+            <div class="device-gate-character" aria-hidden="true">
+              <span class="device-ear device-ear-left"></span><span class="device-ear device-ear-right"></span>
+              <span class="device-face"><i></i><i></i><b></b></span>
+              <span class="device-phone"><i class="bi bi-phone"></i></span>
+            </div>
+            <span class="eyebrow">STUDENT PORTAL</span>
+            <h1>Please open this on a mobile phone or tablet</h1>
+            <p>The student portal is available on mobile and tablet screen sizes.</p>
+            <button class="btn btn-primary" id="studentDeviceBackButton" type="button"><i class="bi bi-arrow-left me-2"></i>Back to login</button>
+          </article>
+        </div>
+      </section>
+
+      <!-- New student registration opens only after an ID is not found. -->
+      <section class="screen d-none" id="registrationScreen">
+        <div class="compact-wrap registration-wrap">
+          <div class="intro-row registration-hero">
+            <div class="intro-copy"><span class="eyebrow">STUDENT REGISTRATION</span><h1>Complete your registration</h1></div>
+            <button class="btn btn-light btn-sm" id="cancelRegistrationButton" type="button"><i class="bi bi-arrow-left me-1"></i>Back to login</button>
+          </div>
+
+          <div class="stepper" aria-label="Registration steps">
+            <div class="step active" id="stepDetails"><span>1</span><small>Details</small></div>
+            <div class="step-line"></div>
+            <div class="step" id="stepSchedule"><span>2</span><small>Schedule</small></div>
+            <div class="step-line"></div>
+            <div class="step" id="stepDone"><span>3</span><small>Done</small></div>
+          </div>
+
+          <article class="surface" id="detailsPanel">
+            <form id="studentForm" novalidate>
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label" for="studentIdNumber">Student ID number <span>*</span></label>
+                  <div class="student-id-field">
+                    <i class="bi bi-person-vcard" aria-hidden="true"></i>
+                    <input class="form-control form-control-lg" id="studentIdNumber" name="studentIdNumber" type="text" inputmode="numeric" autocomplete="off" maxlength="15" readonly pattern="[0-9]{3}-[0-9]{4}-[0-9]{6}" placeholder="001-2023-001929" aria-describedby="studentIdHelp" required>
+                  </div>
+                  <div class="form-text" id="studentIdHelp">This ID came from the login check and cannot be changed during registration.</div>
+                  <div class="invalid-feedback">Enter a valid Student ID in the format 001-2023-001929.</div>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label" for="lastName">Last name <span>*</span></label>
+                  <input class="form-control" id="lastName" name="lastName" autocomplete="family-name" required>
+                  <div class="invalid-feedback">Required.</div>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label" for="firstName">First name <span>*</span></label>
+                  <input class="form-control" id="firstName" name="firstName" autocomplete="given-name" required>
+                  <div class="invalid-feedback">Required.</div>
+                </div>
+                <div class="col-sm-4">
+                  <label class="form-label" for="middleName">Middle name</label>
+                  <input class="form-control" id="middleName" name="middleName" autocomplete="additional-name" placeholder="Enter middle name if applicable">
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label" for="college">College <span>*</span></label>
+                  <select class="form-select" id="college" name="college" required><option value="">Select college</option></select>
+                  <div class="invalid-feedback">Select your college.</div>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label" for="course">Course <span>*</span></label>
+                  <input class="form-control" id="course" name="course" type="text" autocomplete="organization-title" placeholder="e.g., Bachelor of Secondary Education" required>
+                  <div class="invalid-feedback">Enter your course.</div>
+                </div>
+              </div>
+              <label class="consent mt-3" for="consent">
+                <input class="form-check-input" id="consent" name="consent" type="checkbox" required>
+                <span>I confirm that the information is correct.</span>
+              </label>
+              <div class="name-check-feedback d-none" id="nameCheckFeedback" role="alert" aria-live="polite"></div>
+              <button class="btn btn-primary btn-lg w-100 mt-3" type="submit">Choose schedule <i class="bi bi-arrow-right ms-1"></i></button>
+            </form>
+          </article>
+
+          <article class="surface d-none" id="schedulePanel">
+            <div class="panel-head">
+              <div><span class="eyebrow">AVAILABLE SCHEDULES</span><h2>Choose your date and time</h2></div>
+              <button class="btn btn-light btn-sm" id="editDetailsButton" type="button"><i class="bi bi-pencil me-1"></i>Edit</button>
+            </div>
+            <div class="student-summary" id="pendingStudentSummary"></div>
+            <div class="availability-toolbar" aria-live="polite">
+              <div>
+                <span class="availability-dot" aria-hidden="true"></span>
+                <strong id="availabilityStatusText">Checking available seats…</strong>
+                <small id="availabilityUpdatedText">Connected to Google Sheets</small>
+              </div>
+              <button class="btn btn-soft-primary btn-sm" id="refreshAvailabilityButton" type="button">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh seats
+              </button>
+            </div>
+            <div class="schedule-loading d-none" id="scheduleLoading" role="status">
+              <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+              <span>Loading current seat availability…</span>
+            </div>
+            <div class="date-grid" id="dateGrid"></div>
+            <div class="schedule-empty d-none" id="datePrompt"><i class="bi bi-calendar2"></i><p>Select an available date to see its batches.</p></div>
+            <div class="slot-groups d-none" id="slotGroups">
+              <section>
+                <div class="group-title"><span><i class="bi bi-sunrise"></i>Morning batches</span><small id="morningCapacityLabel">10 students per hour</small></div>
+                <div class="slot-grid" id="morningSlots"></div>
+              </section>
+              <section>
+                <div class="group-title"><span><i class="bi bi-sunset"></i>Afternoon batches</span><small id="afternoonCapacityLabel">10 students per hour</small></div>
+                <div class="slot-grid" id="afternoonSlots"></div>
+              </section>
+            </div>
+            <div class="selection-bar d-none" id="selectionBar">
+              <div><small>Selected batch</small><strong id="selectedScheduleText">—</strong></div>
+              <button class="btn btn-primary" id="confirmRegistrationButton" type="button">Confirm registration</button>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- Registered student homepage. Registration never opens while this account exists. -->
+      <section class="screen d-none" id="studentHomeScreen">
+        <div class="compact-wrap student-home-wrap">
+          <article class="my-card">
+            <div class="my-card-head">
+              <div><span class="eyebrow">MY REGISTRATION</span><h1 id="studentGreeting">Hello</h1></div>
+              <span class="status-pill" id="studentStatus">Scheduled</span>
+            </div>
+            <div class="my-card-body">
+              <div class="queue-title-row">
+                <span>Queue number</span>
+                <strong id="myQueueNumber">WR-000</strong>
+              </div>
+              <div class="student-id-display">
+                <span><small>Student ID</small><strong id="myStudentId">001-2023-001929</strong></span>
+                <button class="student-id-eye" id="toggleStudentIdVisibility" type="button" aria-label="Hide Student ID" aria-pressed="false" title="Hide Student ID"><i class="bi bi-eye-slash" aria-hidden="true"></i></button>
+              </div>
+              <div class="fact-grid">
+                <div><span><small>Date</small><strong id="myDate">—</strong></span></div>
+                <div><span><small>Time</small><strong id="myTime">—</strong></span></div>
+                <div><span><small>Position</small><strong id="myPosition">—</strong></span></div>
+              </div>
+            </div>
+            <div class="my-card-actions">
+              <button class="btn btn-primary" id="showQrButton" type="button"><i class="bi bi-qr-code me-1"></i>Show QR</button>
+              <button class="btn btn-light" id="refreshStudentTopButton" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Check updates</button>
+              <button class="btn btn-light" id="rescheduleButton" type="button"><i class="bi bi-calendar2-week me-1"></i>Reschedule</button>
+            </div>
+          </article>
+
+          <article class="call-card d-none" id="callCard" aria-live="assertive">
+            <div class="call-copy"><span class="call-icon"><i class="bi bi-bell-fill"></i></span><div><span class="eyebrow">FACILITATOR REMINDER</span><h2>You are being called</h2><p id="callMessage">Please tell the facilitator if you are coming.</p></div></div>
+            <div class="response-grid" id="responseGrid">
+              <button class="btn btn-success" type="button" data-response="on_the_way"><i class="bi bi-person-walking me-1"></i>On the way</button>
+              <button class="btn btn-outline-danger" type="button" data-response="cant_attend"><i class="bi bi-x-circle me-1"></i>Can’t attend</button>
+              <button class="btn btn-outline-primary" type="button" data-response="reschedule_requested"><i class="bi bi-calendar2-week me-1"></i>Reschedule</button>
+            </div>
+            <div class="response-note d-none" id="responseNote"></div>
+          </article>
+
+          <article class="late-card d-none" id="lateCard">
+            <div class="late-head"><span><i class="bi bi-exclamation-triangle"></i></span><div><h2>Your scheduled batch has passed</h2><p>Select another available batch below. When no slot is left, send a rescheduling message.</p></div></div>
+            <div class="available-reschedule" id="lateAvailableSlots"></div>
+            <button class="btn btn-outline-primary w-100 d-none" id="openMessageButton" type="button"><i class="bi bi-chat-dots me-1"></i>Message facilitator for rescheduling</button>
+          </article>
+
+          <article class="surface batch-board">
+            <div class="batch-board-head">
+              <div><span class="eyebrow">MY BATCH LIST</span><h2 id="batchBoardTitle">Selected date</h2><p id="batchBoardSubtitle">Selected time</p><div class="live-sync-note"><span class="live-sync-pulse"></span><span id="studentLiveStatus">Manual refresh · reminders checked</span></div></div>
+              <button class="icon-btn soft" id="refreshStudentButton" type="button" aria-label="Refresh student data" title="Refresh student data"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div class="line-tabs" id="studentStatusTabs" aria-label="Filter batch participants by status">
+              <button class="active" type="button" data-line-filter="pending"><span>Pending</span><b id="pendingLineCount">0</b></button>
+              <button type="button" data-line-filter="ongoing"><span>Ongoing</span><b id="ongoingLineCount">0</b></button>
+              <button type="button" data-line-filter="completed"><span>Completed</span><b id="completedLineCount">0</b></button>
+            </div>
+            <div class="participant-list" id="studentBatchList" aria-live="polite"></div>
+          </article>
+        </div>
+      </section>
+
+
+      <section class="screen d-none" id="studentOngoingScreen">
+        <div class="compact-wrap student-ongoing-wrap">
+          <article class="surface ongoing-hero-card">
+            <div class="ongoing-mini-topbar">
+              <div class="ongoing-mini-profile">
+                <span class="ongoing-avatar"><i class="bi bi-person-circle"></i></span>
+                <div>
+                  <small>NOW SERVING YOUR BATCH</small>
+                  <strong id="ongoingStudentName">Student Name</strong>
+                </div>
+              </div>
+              <button class="btn btn-primary btn-sm" id="ongoingShowQrButton" type="button"><i class="bi bi-qr-code me-1"></i>Show QR</button>
+            </div>
+            <div class="ongoing-mini-facts">
+              <div><small>Queue</small><strong id="ongoingQueueNumber">WR-000</strong></div>
+              <div><small>Schedule</small><strong id="ongoingScheduleText">August 12 · 8:00–9:00 AM</strong></div>
+              <div><small>Status</small><strong id="ongoingStatusText">Ongoing</strong></div>
+            </div>
+          </article>
+
+          <article class="surface ongoing-message-card">
+            <div class="ongoing-message-icon"><i class="bi bi-chat-heart"></i></div>
+            <h2>Please keep quiet in the hall</h2>
+            <p>Maintain discipline while waiting and feel free to ask questions politely to the staff if you need help.</p>
+          </article>
+
+          <article class="surface ongoing-list-card">
+            <div class="batch-board-head">
+              <div>
+                <span class="eyebrow">ONGOING BATCH</span>
+                <h2 id="ongoingBatchTitle">Current batch participants</h2>
+                <p id="ongoingBatchSubtitle">Names in the same schedule</p>
+              </div>
+              <button class="icon-btn soft" id="refreshOngoingButton" type="button" aria-label="Refresh ongoing data" title="Refresh ongoing data"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div class="participant-list" id="ongoingBatchList" aria-live="polite"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen d-none" id="studentCompletedScreen">
+        <div class="compact-wrap student-completed-wrap">
+          <article class="surface completed-card">
+            <div class="completed-icon"><i class="bi bi-patch-check-fill"></i></div>
+            <span class="eyebrow">REGISTRATION COMPLETED</span>
+            <h1>Thank you, <span id="completedStudentName">Student</span>!</h1>
+            <p class="completed-copy">Your Wadhwani appointment has been completed successfully. Thank you for your cooperation and for keeping the process smooth.</p>
+            <div class="completed-schedule-pill" id="completedScheduleText">August 12 · 8:00–9:00 AM</div>
+            <blockquote class="completed-quote">“Great things grow when preparation meets opportunity.”</blockquote>
+            <p class="completed-note">This page will remain your only view when you open the app again using this Student ID.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Facilitator screen: available only after Config ID and password login. -->
+      <section class="screen d-none" id="facilitatorScreen">
+        <div class="facilitator-layout">
+          <aside class="fac-sidebar">
+            <div><span class="eyebrow">FACILITATOR</span><h2 id="facilitatorName">Facilitator</h2><p id="facilitatorEmail"></p></div>
+            <nav>
+              <button class="fac-nav active" type="button" data-fac-view="appointments"><i class="bi bi-calendar2-check"></i><span>Appointments</span></button>
+              <button class="fac-nav" type="button" data-fac-view="dashboard"><i class="bi bi-bar-chart-line"></i><span>Dashboard</span></button>
+            </nav>
+          </aside>
+
+          <div class="fac-main">
+            <section id="appointmentsView">
+              <div class="fac-head">
+                <div><span class="eyebrow">FACILITATOR HOME</span><h1 id="facGreeting">Welcome</h1><p id="facTodayLabel">Appointments</p><div class="live-sync-note facilitator-live-note"><span class="live-sync-pulse"></span><span id="facLiveStatus">Ready</span></div></div>
+                <div class="fac-actions"><button class="btn btn-light" id="appointmentSettingsButton" type="button" title="Set capacity and open appointment dates"><i class="bi bi-sliders me-1"></i>Appointment settings</button><button class="btn btn-light" id="jumpCurrentBatchButton" type="button" title="Open the current or next batch"><i class="bi bi-clock-history me-1"></i>Current batch</button><button class="btn btn-outline-primary" id="scanQrButton" type="button"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</button><button class="btn btn-soft-primary" id="refreshFacilitatorButton" type="button" aria-label="Refresh all facilitator data" title="Refresh all registrations and messages"><i class="bi bi-arrow-clockwise me-1"></i>Refresh all</button></div>
+              </div>
+
+              <div class="fac-friendly-overview">
+                <div class="fac-friendly-character" aria-hidden="true"><span class="fac-friendly-ear left"></span><span class="fac-friendly-ear right"></span><span class="fac-friendly-face"><i></i><i></i><b></b></span><span class="fac-friendly-clipboard"><i class="bi bi-clipboard2-check"></i></span></div>
+                <div class="fac-summary-grid">
+                  <div><span><i class="bi bi-people"></i></span><small>Registered</small><strong id="facSummaryRegistered">0</strong></div>
+                  <div><span><i class="bi bi-hourglass-split"></i></span><small>Pending</small><strong id="facSummaryPending">0</strong></div>
+                  <div><span><i class="bi bi-play-circle"></i></span><small>Ongoing</small><strong id="facSummaryOngoing">0</strong></div>
+                </div>
+              </div>
+
+              <div class="fac-filter-bar">
+                <div class="segmented" id="facDateTabs"></div>
+                <div class="segmented" id="dayPartTabs"><button class="active" type="button" data-part="morning"><i class="bi bi-sunrise me-1"></i>Morning</button><button type="button" data-part="afternoon"><i class="bi bi-sunset me-1"></i>Afternoon</button></div>
+              </div>
+
+              <div class="batch-strip" id="facBatchStrip"></div>
+
+              <div class="fac-content-grid">
+                <article class="surface roster-card">
+                  <div class="roster-head"><div><span class="eyebrow">SELECTED BATCH</span><h2 id="facBatchTitle">—</h2><p id="facBatchCapacity">0 of 10 registered</p></div><input class="form-control search-input" id="facSearch" type="search" placeholder="Search name, Student ID, or queue"></div>
+                  <div class="fac-roster" id="facRoster"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="d-none" id="dashboardView">
+              <div class="fac-head dashboard-heading">
+                <div><span class="eyebrow">ADMIN DASHBOARD</span><h1>Completion overview</h1><p>Simple insights from the latest facilitator data currently loaded.</p></div>
+              </div>
+
+              <div class="dashboard-kpi-grid">
+                <article class="dashboard-kpi"><span><i class="bi bi-check2-circle"></i></span><div><small>Completed</small><strong id="facDashboardCompleted">0</strong></div></article>
+                <article class="dashboard-kpi"><span><i class="bi bi-percent"></i></span><div><small>Completion rate</small><strong id="facDashboardRate">0%</strong></div></article>
+                <article class="dashboard-kpi"><span><i class="bi bi-trophy"></i></span><div><small>Leading college</small><strong id="facDashboardTopCollege">—</strong></div></article>
+                <article class="dashboard-kpi"><span><i class="bi bi-hourglass-split"></i></span><div><small>Still pending</small><strong id="facDashboardPending">0</strong></div></article>
+              </div>
+
+              <div class="dashboard-content-grid">
+                <article class="surface dashboard-chart-card">
+                  <div class="dashboard-card-head"><div><span class="eyebrow">COMPLETED BY COLLEGE</span><h2>College performance graph</h2></div><span class="dashboard-legend"><i></i>Completed</span></div>
+                  <div class="college-chart" id="collegeCompletionChart"></div>
+                </article>
+                <aside class="dashboard-insight-column">
+                  <article class="surface smart-insight-card"><span class="smart-insight-icon"><i class="bi bi-stars"></i></span><div><small>Smart insight</small><strong id="facDashboardInsight">Waiting for registration data.</strong></div></article>
+                  <article class="surface smart-insight-card"><span class="smart-insight-icon"><i class="bi bi-clock-history"></i></span><div><small>Busiest appointment</small><strong id="facDashboardBusiest">—</strong></div></article>
+                </aside>
+              </div>
+            </section>
+
+            <section class="d-none" id="messagesView">
+              <div class="fac-head message-page-heading"><div><span class="eyebrow">MESSAGE CENTER</span><h1>Student responses</h1><p>Call responses and rescheduling requests.</p></div><button class="btn btn-light" id="closeMessagesButton" type="button"><i class="bi bi-arrow-left me-1"></i>Back</button></div>
+              <section class="message-section-block"><div class="message-section-title"><span><i class="bi bi-bell"></i></span><div><h2>Responses to Call/Remind</h2><p>Latest responses recorded from student accounts.</p></div></div><div class="message-list" id="facCallResponseList"></div></section>
+              <section class="message-section-block"><div class="message-section-title"><span><i class="bi bi-chat-left-text"></i></span><div><h2>Rescheduling requests</h2><p>Messages sent by students who need another schedule.</p></div></div><div class="message-list" id="facMessageList"></div></section>
+            </section>
+          </div>
+        </div>
+        <button class="floating-message-button" id="floatingMessageButton" type="button" aria-label="Open student messages" title="Student messages"><i class="bi bi-chat-dots-fill"></i><span>Messages</span><b id="messageCount">0</b></button>
+      </section>
+    </main>
+  </div>
+
+
+  <div class="modal fade appointment-settings-modal" id="appointmentSettingsModal" tabindex="-1" aria-labelledby="appointmentSettingsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content appointment-settings-card">
+        <div class="modal-header border-0">
+          <div><span class="eyebrow">APPOINTMENT SETTINGS</span><h2 class="modal-title" id="appointmentSettingsTitle">Capacity and open dates</h2></div>
+          <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body pt-0">
+          <div class="settings-field-block">
+            <label class="form-label" for="appointmentCapacityInput">Students per hour</label>
+            <div class="capacity-stepper">
+              <button type="button" id="capacityMinusButton" aria-label="Decrease capacity"><i class="bi bi-dash-lg"></i></button>
+              <input class="form-control text-center" id="appointmentCapacityInput" type="number" inputmode="numeric" min="1" max="200" step="1" value="10">
+              <button type="button" id="capacityPlusButton" aria-label="Increase capacity"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <small class="settings-help">This limit applies to every hourly appointment card.</small>
+          </div>
+
+          <div class="settings-field-block mt-4">
+            <label class="form-label" for="appointmentDateInput">Open appointment date</label>
+            <div class="appointment-date-add-row">
+              <input class="form-control" id="appointmentDateInput" type="date">
+              <button class="btn btn-outline-primary" id="addAppointmentDateButton" type="button"><i class="bi bi-plus-circle me-1"></i>Add</button>
+            </div>
+            <div class="open-date-chip-list" id="openAppointmentDateList"></div>
+            <small class="settings-help">Students can register only on the dates listed here. Removing a date closes it for new appointments but keeps existing records available to the facilitator.</small>
+          </div>
+
+          <div class="settings-preview mt-4">
+            <span><i class="bi bi-people"></i><small>Hourly limit</small><strong id="settingsCapacityPreview">10</strong></span>
+            <span><i class="bi bi-calendar2-check"></i><small>Open dates</small><strong id="settingsDateCountPreview">0</strong></span>
+          </div>
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button class="btn btn-light" type="button" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary" id="saveAppointmentSettingsButton" type="button"><i class="bi bi-check2-circle me-1"></i>Save settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade volume-prompt-modal" id="volumePromptModal" tabindex="-1" aria-labelledby="volumePromptTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content volume-prompt-card">
+        <div class="modal-body text-center">
+          <div class="volume-character" aria-hidden="true">
+            <span class="volume-ear volume-ear-left"></span><span class="volume-ear volume-ear-right"></span>
+            <span class="volume-face"><i></i><i></i><b></b></span>
+            <span class="volume-bell"><i class="bi bi-bell-fill"></i></span>
+            <span class="volume-wave wave-one"></span><span class="volume-wave wave-two"></span>
+          </div>
+          <span class="eyebrow">VOLUME ALERT</span>
+          <h2 id="volumePromptTitle">Turn on queue alerts?</h2>
+          <p>Hear facilitator reminders and queue announcements.</p>
+          <div class="volume-prompt-actions">
+            <button class="btn btn-primary" id="enableVolumeButton" type="button"><i class="bi bi-volume-up me-2"></i>Turn on volume</button>
+            <button class="btn btn-light" id="keepMutedButton" type="button">Not now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Facilitator selected-student slide-up sheet -->
+  <div class="modal fade call-alert-modal" id="callAlertModal" tabindex="-1" aria-labelledby="callAlertTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content call-alert-content">
+        <div class="modal-body">
+          <div class="call-alert-header">
+            <span class="call-alert-badge"><i class="bi bi-bell-fill"></i></span>
+            <div>
+              <span class="eyebrow">FACILITATOR REMINDER</span>
+              <h2 id="callAlertTitle">Registration reminder</h2>
+              <p id="callAlertMessage">Attention, user WR-000. This is a reminder to proceed with your registration. Please proceed to the CARES Office for assistance. Thank you.</p>
+            </div>
+          </div>
+          <div class="response-grid response-grid-modal" id="callAlertResponseGrid">
+            <button class="btn btn-success" type="button" data-response="on_the_way"><i class="bi bi-person-walking me-1"></i>On the way</button>
+            <button class="btn btn-outline-danger" type="button" data-response="cant_attend"><i class="bi bi-x-circle me-1"></i>Can’t attend</button>
+            <button class="btn btn-outline-primary" type="button" data-response="reschedule_requested"><i class="bi bi-calendar2-week me-1"></i>Reschedule</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade facilitator-student-modal" id="selectedStudentModal" tabindex="-1" aria-labelledby="selectedStudentModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content selected-card" id="selectedStudentCard">
+        <div class="student-sheet-drag-zone" id="selectedStudentSheetHandle" aria-hidden="true"><span class="student-sheet-handle"></span></div>
+        <div class="modal-body student-sheet-body">
+          <div class="empty-selection d-none" id="emptySelection"><i class="bi bi-person-check"></i><h3>Select a student</h3><p>Tap a student row to view the record.</p></div>
+          <div class="d-none" id="selectedStudentDetails">
+            <div class="student-sheet-toolbar">
+              <span class="eyebrow">SELECTED STUDENT</span>
+              <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close student information"></button>
+            </div>
+            <div class="selected-head">
+              <div><h2 id="selectedStudentModalTitle"><span id="selectedName">—</span></h2><p class="selected-student-id" id="selectedStudentId">Student ID: —</p></div>
+              <span class="status-pill" id="selectedStatus">Scheduled</span>
+            </div>
+            <div class="selected-meta"><div><small>Queue</small><strong id="selectedQueue">—</strong></div><div><small>Batch</small><strong id="selectedBatch">—</strong></div><div><small>Response</small><strong id="selectedResponse">No reminder</strong></div></div>
+            <div class="action-stack">
+              <button class="btn btn-warning" id="callStudentButton" type="button"><i class="bi bi-bell me-1"></i>Call / remind</button>
+              <div class="action-row"><button class="btn btn-primary" id="markOngoingButton" type="button"><i class="bi bi-play-circle me-1"></i>Ongoing</button><button class="btn btn-success" id="markCompleteButton" type="button"><i class="bi bi-check-circle me-1"></i>Complete</button></div>
+              <button class="btn btn-outline-danger" id="markNoShowButton" type="button"><i class="bi bi-person-x me-1"></i>No show</button>
+            </div>
+            <div class="response-history" id="selectedResponseHistory"></div>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student QR ticket -->
+  <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content qr-modal"><div class="modal-header border-0"><div><span class="eyebrow">SCAN ON ARRIVAL</span><h2 class="modal-title">My QR ticket</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body text-center"><div class="qr-frame" id="qrCode"></div><strong class="qr-queue" id="qrQueue">WR-000</strong><p id="qrName">Student name</p><div class="qr-student-id"><small>Student ID</small><strong id="qrStudentId">001-2023-001929</strong></div><div class="qr-schedule" id="qrSchedule">August 12 · 8:00–9:00 AM</div></div></div></div>
+  </div>
+
+  <!-- Reschedule -->
+  <div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow">CHANGE SCHEDULE</span><h2 class="modal-title">Choose another available batch</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="date-grid" id="rescheduleDateGrid"></div><div class="slot-groups mt-3 d-none" id="rescheduleSlotGroups"><section><div class="group-title"><span><i class="bi bi-sunrise"></i>Morning</span></div><div class="slot-grid" id="rescheduleMorningSlots"></div></section><section><div class="group-title"><span><i class="bi bi-sunset"></i>Afternoon</span></div><div class="slot-grid" id="rescheduleAfternoonSlots"></div></section></div></div><div class="modal-footer"><div class="me-auto"><small>New schedule</small><strong class="d-block" id="rescheduleChoice">Select a date and batch</strong></div><button class="btn btn-primary" id="confirmRescheduleButton" type="button" disabled>Save new schedule</button></div></div></div>
+  </div>
+
+  <!-- Message facilitator -->
+  <div class="modal fade" id="messageModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow">RESCHEDULING REQUEST</span><h2 class="modal-title">Message the facilitator</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><p>No available batch is currently open. Explain why you need a new schedule.</p><label class="form-label" for="rescheduleMessage">Message</label><textarea class="form-control" id="rescheduleMessage" rows="4" placeholder="Please help me reschedule because…"></textarea><button class="btn btn-primary w-100 mt-3" id="sendMessageButton" type="button">Send request</button></div></div></div>
+  </div>
+
+  <!-- QR scanner -->
+  <div class="modal fade" id="scannerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow">FACILITATOR SCANNER</span><h2 class="modal-title">Scan student QR</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="scanner-box"><video id="scannerVideo" playsinline muted></video><div class="scan-frame"></div></div><button class="btn btn-primary w-100 mt-3" id="startCameraButton" type="button"><i class="bi bi-camera me-1"></i>Start camera</button><div class="divider"><span>or enter Student ID / QR value</span></div><input class="form-control" id="manualScanValue" inputmode="text" placeholder="001-2023-001929 or WRQR2|..."><button class="btn btn-outline-primary w-100 mt-2" id="manualScanButton" type="button">Find student</button></div></div></div>
+  </div>
+
+  <div class="toast-container position-fixed bottom-0 end-0 p-3"><div class="toast" id="appToast" role="status"><div class="toast-header"><strong class="me-auto" id="toastTitle">Wadhwani</strong><button class="btn-close" type="button" data-bs-dismiss="toast"></button></div><div class="toast-body" id="toastMessage"></div></div></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script>
+    const freshAppScript = document.createElement('script');
+    freshAppScript.async = false;
+    freshAppScript.src = 'script.js?fresh=' + Date.now();
+    document.body.appendChild(freshAppScript);
+  </script>
+</body>
+</html>
