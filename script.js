@@ -31,7 +31,7 @@
   let SESSION_MINUTES = 10;
   let CAPACITY = 60;
   // Keep room on an hourly printout for walk-in/manual registrations without adding another sheet.
-  const HOURLY_PRINT_MIN_ROWS = 10;
+  const HOURLY_PRINT_MIN_ROWS = 13;
   let TEST_TODAY_DATE = '';
   let availabilityIndex = new Map();
   let serverClockOffset = 0;
