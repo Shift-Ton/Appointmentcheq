@@ -2739,10 +2739,10 @@
     return [student.lastName ? `${student.lastName},` : '', student.firstName, initial].filter(Boolean).join(' ');
   }
 
- function printRegistrationSheet() {
+function printRegistrationSheet() {
   const students = getPrintableStudents(printScope);
-  const rowsPerTable = 10;
   const rotation = getRotationsForSlot(facDate, facSlot).find(item => item.id === facRotation);
+
   const scopeLabel = printScope === 'day'
     ? 'Complete Daily Registration List'
     : printScope === 'hour'
@@ -2772,19 +2772,10 @@
     </tr>`;
   };
 
-  const studentPages = [];
-
-  for (let start = 0; start < students.length; start += rowsPerTable) {
-    const page = students.slice(start, start + rowsPerTable);
-
-    while (page.length < rowsPerTable) page.push(null);
-
-    studentPages.push(page);
-  }
-
-  if (!studentPages.length) {
-    studentPages.push(Array(rowsPerTable).fill(null));
-  }
+  const printableRows = students.length ? students : [null];
+  const rows = printableRows
+    .map((student, index) => buildRow(student, index + 1))
+    .join('');
 
   const tableHeader = `
     <thead>
@@ -2799,25 +2790,9 @@
       </tr>
     </thead>`;
 
-  const tableSections = studentPages.map((page, pageIndex) => {
-    const rows = page
-      .map((student, rowIndex) => buildRow(student, pageIndex * rowsPerTable + rowIndex + 1))
-      .join('');
+  const attendanceTable = `<table>${tableHeader}<tbody>${rows}</tbody></table>`;
 
-    return `<section class="print-table-page">
-      <table>${tableHeader}<tbody>${rows}</tbody></table>
-    </section>`;
-  }).join('');
-
-  const printWindow = window.open('', '_blank', 'width=1280,height=860');
-
-  if (!printWindow) {
-    toast('Print window blocked', 'Allow pop-ups for this page, then try printing again.');
-    return;
-  }
-
-  printWindow.document.open();
-  printWindow.document.write(`<!doctype html>
+  const printHtml = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -2828,7 +2803,7 @@
     body { margin: 0; color: #111; font: 10px/1.4 Arial, sans-serif; }
     header { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: end; padding: 0 0 11px; border-bottom: 2px solid #145f4f; }
     h1 { margin: 2px 0 0; font-size: 18px; color: #145f4f; }
-    h2 { margin: 3px 0 0; font-size: 12px; font-weight: 700; }
+    h2 { margin: 3px 0 0; font-size: 12px; }
     .office { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .meta { text-align: right; }
     .meta strong, .meta span { display: block; }
@@ -2837,8 +2812,6 @@
     .summary small, .summary strong { display: block; }
     .summary small { color: #53655f; font-size: 8px; text-transform: uppercase; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .print-table-page { break-inside: avoid; page-break-inside: avoid; }
-    .print-table-page + .print-table-page { margin-top: 18px; }
     thead { display: table-header-group; }
     th { padding: 6px 4px; border: 1px solid #53655f; color: #fff; background: #145f4f; font-size: 8px; text-transform: uppercase; }
     td { height: 32px; padding: 5px 4px; border: 1px solid #8e9b97; vertical-align: middle; overflow-wrap: anywhere; }
@@ -2854,7 +2827,7 @@
     th:nth-child(6) { width: 12%; }
     th:nth-child(7) { width: 18%; }
     footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-top: 15px; padding-top: 11px; border-top: 1px solid #8e9b97; }
-    .signoff { width: 270px; padding-top: 26px; border-bottom: 1px solid #111; text-align: center; }
+    .signoff { width: 270px; padding-top: 26px; border-bottom: 1px solid #111; }
     .print-note { max-width: 520px; color: #4e5e59; }
   </style>
 </head>
@@ -2877,7 +2850,7 @@
     <div><small>Registered clients</small><strong>${students.length}</strong></div>
   </section>
 
-  ${tableSections}
+  ${attendanceTable}
 
   <footer>
     <div class="print-note">By signing, the client confirms attendance during the indicated 10-minute rotation.</div>
@@ -2887,12 +2860,33 @@
     </div>
   </footer>
 </body>
-</html>`);
+</html>`;
 
-  printWindow.document.close();
+  const printUrl = URL.createObjectURL(new Blob([printHtml], { type: 'text/html' }));
+  const printWindow = window.open(printUrl, '_blank', 'width=1280,height=860');
+
+  if (!printWindow) {
+    URL.revokeObjectURL(printUrl);
+    toast('Print window blocked', 'Allow pop-ups for this page, then try printing again.');
+    return;
+  }
+
+  const releasePrintUrl = () => URL.revokeObjectURL(printUrl);
+  printWindow.addEventListener('afterprint', releasePrintUrl, { once: true });
+
+  let printStarted = false;
+  const startPrint = () => {
+    if (printStarted) return;
+    printStarted = true;
+    printWindow.focus();
+    window.setTimeout(() => printWindow.print(), 300);
+  };
+
+  printWindow.addEventListener('load', startPrint, { once: true });
+  window.setTimeout(startPrint, 800);
+  window.setTimeout(releasePrintUrl, 60000);
+
   hideModal('printRegistrationModal');
-  printWindow.focus();
-  window.setTimeout(() => printWindow.print(), 300);
 }
 
   function renderFacilitatorDashboard() {
