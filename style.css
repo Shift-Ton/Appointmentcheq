@@ -5230,3 +5230,171 @@ button, a, input, select, textarea { touch-action: manipulation; }
   .modal-dialog { align-items: flex-end; }
 }
 /* ================== ALL-SCREEN TICKET + FACILITATOR DESKTOP V20: END ================== */
+
+/* ================= REGISTERED TICKET FLUID LAYOUT V21: BEGIN =================
+   The ticket faces share a CSS grid cell instead of relying on fixed heights.
+   This lets the card grow with a long student name, course, or expiry notice
+   on every screen size while preserving the completed-ticket flip. */
+#studentHomeScreen,
+#studentHomeScreen .ticket-only-wrap,
+#studentHomeScreen .ticket-flip-shell {
+  min-width: 0;
+}
+
+#studentHomeScreen .ticket-only-wrap {
+  width: min(960px, 100%);
+  max-width: 100%;
+}
+
+#studentHomeScreen .ticket-flip-shell {
+  width: 100%;
+  max-width: 100%;
+}
+
+#studentHomeScreen .ticket-flip-inner {
+  display: grid;
+  width: 100%;
+  min-height: 0;
+}
+
+#studentHomeScreen .ticket-face {
+  position: relative;
+  inset: auto;
+  grid-area: 1 / 1;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#studentHomeScreen .ticket-premium-body {
+  grid-template-columns: minmax(0, 1fr) minmax(160px, 196px);
+}
+
+#studentHomeScreen .ticket-qr-shell {
+  --ticket-qr-size: 156px;
+  inline-size: min(100%, calc(var(--ticket-qr-size) + 30px));
+  max-inline-size: 100%;
+}
+
+#studentHomeScreen .ticket-qr-shell .ticket-qr {
+  min-inline-size: var(--ticket-qr-size);
+  min-block-size: var(--ticket-qr-size);
+}
+
+#studentHomeScreen .ticket-qr img,
+#studentHomeScreen .ticket-qr canvas {
+  inline-size: var(--ticket-qr-size) !important;
+  block-size: var(--ticket-qr-size) !important;
+  max-inline-size: 100%;
+  object-fit: contain;
+}
+
+#studentHomeScreen .ticket-reference-line,
+#studentHomeScreen .ticket-live-row,
+#studentHomeScreen .ticket-footer-security,
+#studentHomeScreen .ticket-state-message,
+#studentHomeScreen .ticket-schedule-grid > div {
+  min-width: 0;
+}
+
+#studentHomeScreen .ticket-reference-line {
+  max-width: 100%;
+  align-items: flex-start;
+  white-space: normal;
+}
+
+#studentHomeScreen .ticket-reference-line span,
+#studentHomeScreen #studentLiveStatus,
+#studentHomeScreen .ticket-schedule-grid > div > span,
+#studentHomeScreen .ticket-state-message > div,
+#studentHomeScreen .ticket-footer-security > span,
+#studentHomeScreen .completed-return-note,
+#studentHomeScreen .completed-return-note span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#studentHomeScreen .ticket-schedule-grid > div > i,
+#studentHomeScreen .ticket-state-message > span,
+#studentHomeScreen .ticket-refresh-btn {
+  flex: 0 0 auto;
+}
+
+#studentHomeScreen .ticket-state-message .btn {
+  max-width: 100%;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+@media (max-width: 800px) {
+  #studentHomeScreen .ticket-premium-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #studentHomeScreen .ticket-qr-shell {
+    --ticket-qr-size: clamp(132px, 30vw, 146px);
+    justify-self: center;
+    margin-inline: auto;
+  }
+}
+
+@media (min-width: 601px) and (max-width: 920px) {
+  /* Keep the four schedule details balanced on tablets. */
+  #studentHomeScreen .premium-schedule-grid > div:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  #studentHomeScreen .premium-schedule-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #studentHomeScreen .ticket-state-message {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  #studentHomeScreen .ticket-state-message .btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  #studentHomeScreen .ticket-footer-security,
+  #studentHomeScreen .completed-ticket-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 390px) {
+  #studentHomeScreen .ticket-premium-head,
+  #studentHomeScreen .completed-ticket-topline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #studentHomeScreen .ticket-premium-head .ticket-status-badge,
+  #studentHomeScreen .completed-ticket-badge {
+    justify-self: start;
+    margin-left: 0;
+  }
+
+  #studentHomeScreen .ticket-qr-shell {
+    --ticket-qr-size: clamp(116px, 40vw, 132px);
+  }
+
+  #studentHomeScreen .ticket-reference-line {
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 320px) {
+  #studentHomeScreen .ticket-premium-head { padding-inline: 13px; }
+  #studentHomeScreen .ticket-premium-body { padding-inline: 13px; }
+  #studentHomeScreen .premium-schedule-grid { padding-inline: 13px; }
+  #studentHomeScreen .premium-live-row,
+  #studentHomeScreen .premium-ticket .ticket-state-message { margin-inline: 13px; }
+  #studentHomeScreen .ticket-footer-security { padding-inline: 13px; }
+}
+/* ================== REGISTERED TICKET FLUID LAYOUT V21: END ================== */
