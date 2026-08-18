@@ -30,6 +30,8 @@
   let LAPTOP_COUNT = 10;
   let SESSION_MINUTES = 10;
   let CAPACITY = 60;
+  // Keep room on an hourly printout for walk-in/manual registrations without adding another sheet.
+  const HOURLY_PRINT_MIN_ROWS = 10;
   let TEST_TODAY_DATE = '';
   let availabilityIndex = new Map();
   let serverClockOffset = 0;
@@ -2719,7 +2721,11 @@
     printScope = scope;
     $$('[data-print-scope]').forEach(button => button.classList.toggle('active', button.dataset.printScope === scope));
     const students = getPrintableStudents(scope);
-    $('#printRegistrationSummary').textContent = `${students.length} registered client${students.length === 1 ? '' : 's'} will be included with a blank signature column.`;
+    const blankHourlyRows = scope === 'hour' ? Math.max(0, HOURLY_PRINT_MIN_ROWS - students.length) : 0;
+    const handwrittenEntryNote = blankHourlyRows
+      ? ` The hourly sheet will also include ${blankHourlyRows} bordered blank row${blankHourlyRows === 1 ? '' : 's'} for handwritten registrations.`
+      : '';
+    $('#printRegistrationSummary').textContent = `${students.length} registered client${students.length === 1 ? '' : 's'} will be included with a blank signature column.${handwrittenEntryNote}`;
   }
 
   function getPrintableStudents(scope = printScope) {
@@ -2772,7 +2778,13 @@ function printRegistrationSheet() {
     </tr>`;
   };
 
-  const printableRows = students.length ? students : [null];
+  // Hourly sheets leave a few bordered rows for registrations written in by hand.
+  // Other print scopes retain their existing one-row minimum when there are no registrations.
+  const minimumPrintableRows = printScope === 'hour' ? HOURLY_PRINT_MIN_ROWS : 1;
+  const printableRows = [
+    ...students,
+    ...Array(Math.max(0, minimumPrintableRows - students.length)).fill(null)
+  ];
   const rows = printableRows
     .map((student, index) => buildRow(student, index + 1))
     .join('');
