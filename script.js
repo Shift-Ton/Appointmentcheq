@@ -2739,78 +2739,161 @@
     return [student.lastName ? `${student.lastName},` : '', student.firstName, initial].filter(Boolean).join(' ');
   }
 
-  function printRegistrationSheet() {
-    const students = getPrintableStudents(printScope);
-    if (!students.length) {
-      toast('Nothing to print', 'No registered clients match the selected print scope.');
-      return;
-    }
-    const rotation = getRotationsForSlot(facDate, facSlot).find(item => item.id === facRotation);
-    const scopeLabel = printScope === 'day'
-      ? 'Complete Daily Registration List'
-      : printScope === 'hour'
-        ? `Hourly Batch · ${getSlot(facSlot)?.label || facSlot}`
-        : `${SESSION_MINUTES}-Minute Rotation · ${rotation?.label || facRotation}`;
-    const generatedAt = new Intl.DateTimeFormat('en-PH', {
-      timeZone: 'Asia/Manila', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
-    }).format(getServerNow());
-    const rows = students.map((student, index) => `<tr>
-      <td class="center">${index + 1}</td>
-      <td>${escapeHtml(student.queueNumber || '')}</td>
-      <td>${escapeHtml(student.studentIdNumber || '')}</td>
-      <td class="name">${escapeHtml(printableStudentName(student))}</td>
-      <td>${escapeHtml(student.email || '')}</td>
-      <td>${escapeHtml(`${shortCollege(student.college)} / ${student.course || ''}`)}</td>
-      <td>${escapeHtml(appointmentTimeLabel(student))}</td>
-      <td class="signature"></td>
-    </tr>`).join('');
+ function printRegistrationSheet() {
+  const students = getPrintableStudents(printScope);
+  const rowsPerTable = 10;
+  const rotation = getRotationsForSlot(facDate, facSlot).find(item => item.id === facRotation);
+  const scopeLabel = printScope === 'day'
+    ? 'Complete Daily Registration List'
+    : printScope === 'hour'
+      ? `Hourly Batch · ${getSlot(facSlot)?.label || facSlot}`
+      : `${SESSION_MINUTES}-Minute Rotation · ${rotation?.label || facRotation}`;
 
-    const printWindow = window.open('', '_blank', 'width=1280,height=860');
-    if (!printWindow) {
-      toast('Print window blocked', 'Allow pop-ups for this page, then try printing again.');
-      return;
-    }
-    printWindow.document.open();
-    printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Wadhwani Registration · ${escapeHtml(scopeLabel)}</title><style>
-      @page { size: 13in 8.5in; margin: .55in .60in .65in; @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 9px Arial, sans-serif; } }
-      * { box-sizing: border-box; }
-      body { margin: 0; color: #111; font: 10px/1.4 Arial, sans-serif; }
-      header { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: end; padding: 0 0 11px; border-bottom: 2px solid #145f4f; }
-      h1 { margin: 2px 0 0; font-size: 18px; color: #145f4f; }
-      h2 { margin: 3px 0 0; font-size: 12px; font-weight: 700; }
-      .office { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-      .meta { text-align: right; }
-      .meta strong, .meta span { display: block; }
-      .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: 12px 0; }
-      .summary div { min-height: 38px; padding: 6px 8px; border: 1px solid #b8c7c2; border-radius: 5px; }
-      .summary small, .summary strong { display: block; }
-      .summary small { color: #53655f; font-size: 8px; text-transform: uppercase; }
-      table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-      thead { display: table-header-group; }
-      th { padding: 6px 4px; border: 1px solid #53655f; color: #fff; background: #145f4f; font-size: 8px; text-transform: uppercase; }
-      td { height: 32px; padding: 5px 4px; border: 1px solid #8e9b97; vertical-align: middle; overflow-wrap: anywhere; }
-      tbody tr:nth-child(even) { background: #f4f8f6; }
-      .center { text-align: center; }
-      .name { font-weight: 700; }
-      .signature { height: 38px; background: #fff; }
-      th:nth-child(1) { width: 3.5%; } th:nth-child(2) { width: 7%; } th:nth-child(3) { width: 10.5%; }
-      th:nth-child(4) { width: 17%; } th:nth-child(5) { width: 18%; } th:nth-child(6) { width: 19%; }
-      th:nth-child(7) { width: 10%; } th:nth-child(8) { width: 15%; }
-      footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-top: 15px; padding-top: 11px; border-top: 1px solid #8e9b97; }
-      .signoff { width: 270px; padding-top: 26px; border-bottom: 1px solid #111; text-align: center; }
-      .print-note { max-width: 520px; color: #4e5e59; }
-      @media print { .no-print { display: none; } }
-    </style></head><body>
-      <header><div><span class="office">Romblon State University · Center for Alumni Relations and Employment Services</span><h1>Wadhwani Registration Attendance and Signature Sheet</h1><h2>${escapeHtml(scopeLabel)}</h2></div><div class="meta"><strong>${escapeHtml(formatDate(facDate, { month: 'long', day: 'numeric', year: 'numeric' }))}</strong><span>Printed: ${escapeHtml(generatedAt)}</span></div></header>
-      <section class="summary"><div><small>Appointment date</small><strong>${escapeHtml(formatDate(facDate, { month: 'long', day: 'numeric', year: 'numeric' }))}</strong></div><div><small>Schedule scope</small><strong>${escapeHtml(scopeLabel)}</strong></div><div><small>Registered clients</small><strong>${students.length}</strong></div><div><small>Facilitator</small><strong>${escapeHtml(currentFacilitator?.name || 'Facilitator')}</strong></div></section>
-      <table><thead><tr><th>No.</th><th>Queue</th><th>Student ID</th><th>Full Name</th><th>Email</th><th>College / Course</th><th>Exact Time</th><th>Client Signature</th></tr></thead><tbody>${rows}</tbody></table>
-      <footer><div class="print-note">By signing, the client confirms attendance during the indicated 10-minute rotation. Any available laptop may be used when the rotation begins.</div><div><div class="signoff">${escapeHtml(currentFacilitator?.name || '')}</div><div class="center">Facilitator signature over printed name</div></div></footer>
-    </body></html>`);
-    printWindow.document.close();
-    hideModal('printRegistrationModal');
-    printWindow.focus();
-    window.setTimeout(() => printWindow.print(), 300);
+  const generatedAt = new Intl.DateTimeFormat('en-PH', {
+    timeZone: 'Asia/Manila',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(getServerNow());
+
+  const buildRow = (student, number) => {
+    const hasStudent = Boolean(student);
+
+    return `<tr>
+      <td class="center">${hasStudent ? number : ''}</td>
+      <td>${hasStudent ? escapeHtml(student.queueNumber || '') : ''}</td>
+      <td>${hasStudent ? escapeHtml(student.studentIdNumber || '') : ''}</td>
+      <td class="name">${hasStudent ? escapeHtml(printableStudentName(student)) : ''}</td>
+      <td>${hasStudent ? escapeHtml(`${shortCollege(student.college)} / ${student.course || ''}`) : ''}</td>
+      <td>${hasStudent ? escapeHtml(appointmentTimeLabel(student)) : ''}</td>
+      <td class="signature"></td>
+    </tr>`;
+  };
+
+  const studentPages = [];
+
+  for (let start = 0; start < students.length; start += rowsPerTable) {
+    const page = students.slice(start, start + rowsPerTable);
+
+    while (page.length < rowsPerTable) page.push(null);
+
+    studentPages.push(page);
   }
+
+  if (!studentPages.length) {
+    studentPages.push(Array(rowsPerTable).fill(null));
+  }
+
+  const tableHeader = `
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Queue</th>
+        <th>Student ID</th>
+        <th>Full Name</th>
+        <th>College / Course</th>
+        <th>Exact Time</th>
+        <th>Client Signature</th>
+      </tr>
+    </thead>`;
+
+  const tableSections = studentPages.map((page, pageIndex) => {
+    const rows = page
+      .map((student, rowIndex) => buildRow(student, pageIndex * rowsPerTable + rowIndex + 1))
+      .join('');
+
+    return `<section class="print-table-page">
+      <table>${tableHeader}<tbody>${rows}</tbody></table>
+    </section>`;
+  }).join('');
+
+  const printWindow = window.open('', '_blank', 'width=1280,height=860');
+
+  if (!printWindow) {
+    toast('Print window blocked', 'Allow pop-ups for this page, then try printing again.');
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Wadhwani Registration · ${escapeHtml(scopeLabel)}</title>
+  <style>
+    @page { size: 13in 8.5in; margin: .55in .60in .65in; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #111; font: 10px/1.4 Arial, sans-serif; }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: end; padding: 0 0 11px; border-bottom: 2px solid #145f4f; }
+    h1 { margin: 2px 0 0; font-size: 18px; color: #145f4f; }
+    h2 { margin: 3px 0 0; font-size: 12px; font-weight: 700; }
+    .office { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .meta { text-align: right; }
+    .meta strong, .meta span { display: block; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 12px 0; }
+    .summary div { min-height: 38px; padding: 6px 8px; border: 1px solid #b8c7c2; border-radius: 5px; }
+    .summary small, .summary strong { display: block; }
+    .summary small { color: #53655f; font-size: 8px; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .print-table-page { break-inside: avoid; page-break-inside: avoid; }
+    .print-table-page + .print-table-page { margin-top: 18px; }
+    thead { display: table-header-group; }
+    th { padding: 6px 4px; border: 1px solid #53655f; color: #fff; background: #145f4f; font-size: 8px; text-transform: uppercase; }
+    td { height: 32px; padding: 5px 4px; border: 1px solid #8e9b97; vertical-align: middle; overflow-wrap: anywhere; }
+    tbody tr:nth-child(even) { background: #f4f8f6; }
+    .center { text-align: center; }
+    .name { font-weight: 700; }
+    .signature { height: 38px; background: #fff; }
+    th:nth-child(1) { width: 4%; }
+    th:nth-child(2) { width: 8%; }
+    th:nth-child(3) { width: 13%; }
+    th:nth-child(4) { width: 25%; }
+    th:nth-child(5) { width: 20%; }
+    th:nth-child(6) { width: 12%; }
+    th:nth-child(7) { width: 18%; }
+    footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-top: 15px; padding-top: 11px; border-top: 1px solid #8e9b97; }
+    .signoff { width: 270px; padding-top: 26px; border-bottom: 1px solid #111; text-align: center; }
+    .print-note { max-width: 520px; color: #4e5e59; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <span class="office">Romblon State University · Center for Alumni Relations and Employment Services</span>
+      <h1>Wadhwani Registration Attendance and Signature Sheet</h1>
+      <h2>${escapeHtml(scopeLabel)}</h2>
+    </div>
+    <div class="meta">
+      <strong>${escapeHtml(formatDate(facDate, { month: 'long', day: 'numeric', year: 'numeric' }))}</strong>
+      <span>Printed: ${escapeHtml(generatedAt)}</span>
+    </div>
+  </header>
+
+  <section class="summary">
+    <div><small>Appointment date</small><strong>${escapeHtml(formatDate(facDate, { month: 'long', day: 'numeric', year: 'numeric' }))}</strong></div>
+    <div><small>Schedule scope</small><strong>${escapeHtml(scopeLabel)}</strong></div>
+    <div><small>Registered clients</small><strong>${students.length}</strong></div>
+  </section>
+
+  ${tableSections}
+
+  <footer>
+    <div class="print-note">By signing, the client confirms attendance during the indicated 10-minute rotation.</div>
+    <div>
+      <div class="signoff"></div>
+      <div class="center">Facilitator signature over printed name</div>
+    </div>
+  </footer>
+</body>
+</html>`);
+
+  printWindow.document.close();
+  hideModal('printRegistrationModal');
+  printWindow.focus();
+  window.setTimeout(() => printWindow.print(), 300);
+}
 
   function renderFacilitatorDashboard() {
     const registrations = state.students.filter(student => student.status !== 'cancelled');
