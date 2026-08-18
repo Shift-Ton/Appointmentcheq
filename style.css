@@ -5348,7 +5348,8 @@ button, a, input, select, textarea { touch-action: manipulation; }
 
 @media (max-width: 600px) {
   #studentHomeScreen .premium-schedule-grid {
-    grid-template-columns: minmax(0, 1fr);
+    /* Keep Date, Time, College, and Course as a compact 2 × 2 grid. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   #studentHomeScreen .ticket-state-message {
@@ -5364,6 +5365,51 @@ button, a, input, select, textarea { touch-action: manipulation; }
   #studentHomeScreen .completed-ticket-footer {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767.98px) {
+  /* A static mobile face avoids a nested, fixed-height scroll container. */
+  body.student-portal-active:not(.process-loading-active):not(.offline-modal-active):not(.browser-instruction-active):not(.install-gate-active):not(.modal-open) {
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  #studentHomeScreen {
+    overflow: visible;
+    overscroll-behavior-y: auto;
+  }
+
+  #studentHomeScreen .ticket-flip-inner {
+    display: block;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    transform: none !important;
+    transition: none;
+  }
+
+  #studentHomeScreen .ticket-face {
+    display: none;
+    position: relative;
+    inset: auto;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    transform: none !important;
+    overflow: visible;
+  }
+
+  #studentHomeScreen .ticket-front-face {
+    display: block;
+  }
+
+  #studentHomeScreen .ticket-flip-shell.is-flipped .ticket-front-face {
+    display: none;
+  }
+
+  #studentHomeScreen .ticket-flip-shell.is-flipped .ticket-back-face {
+    display: flex;
   }
 }
 
