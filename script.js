@@ -8,7 +8,8 @@
    */
   const API_PROXY_ENDPOINT = '/api/backend';
   const API_TIMEOUT_MS = 60000;
-  const STUDENT_REMINDER_CHECK_MS = 8000;
+  // Poll less often to reduce Apps Script executions while keeping ticket updates timely.
+  const STUDENT_REMINDER_CHECK_MS = 300000;
   const REMINDER_CHECK_JITTER_MS = 2500;
   // Registration and ticket views are supported on phones, tablets, laptops, and wide desktops.
   const STUDENT_MAX_VIEWPORT_WIDTH = Number.POSITIVE_INFINITY;
@@ -698,7 +699,7 @@
   /* ================== BROWSER NOTIFICATIONS: BEGIN ================== */
   function initializeBrowserNotificationFeature() {
     if ('serviceWorker' in navigator && window.isSecureContext) {
-      navigator.serviceWorker.register('./sw.js?v=21', { updateViaCache: 'none' }).then(registration => {
+      navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' }).then(registration => {
         serviceWorkerRegistration = registration;
         registration.update().catch(() => {});
       }).catch(error => console.warn('Notification service worker registration failed:', error.message));
