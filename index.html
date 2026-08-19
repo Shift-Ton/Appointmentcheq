@@ -7,7 +7,6 @@
   <meta name="description" content="Wadhwani browser registration, scheduling, and lightweight ticket status system">
   <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=1">
   <link rel="shortcut icon" href="./favicon.svg?v=1">
-  <script src="firebase-config.js?v=20"></script>
   <title>Wadhwani Registration · Browser Ticket</title>
   <link href="vendor/bootstrap/bootstrap.min.css?v=5.3.3" rel="stylesheet">
   <link href="vendor/bootstrap-icons/bootstrap-icons.min.css?v=1.11.3" rel="stylesheet">
@@ -280,8 +279,8 @@
             <div class="availability-toolbar" aria-live="polite">
               <div>
                 <span class="availability-dot" aria-hidden="true"></span>
-                <strong id="availabilityStatusText">Checking available seats…</strong>
-                <small id="availabilityUpdatedText">Connected to Google Sheets</small>
+                <strong id="availabilityStatusText">Seat availability has not been loaded yet</strong>
+                <small id="availabilityUpdatedText">Select Refresh seats to load Google Sheets</small>
               </div>
               <button class="btn btn-soft-primary btn-sm" id="refreshAvailabilityButton" type="button">
                 <i class="bi bi-arrow-clockwise me-1"></i>Refresh seats
@@ -292,7 +291,7 @@
               <span>Loading current seat availability…</span>
             </div>
             <div class="date-grid" id="dateGrid"></div>
-            <div class="schedule-empty d-none" id="datePrompt"><i class="bi bi-calendar2"></i><p>Select an available date to see its batches.</p></div>
+            <div class="schedule-empty d-none" id="datePrompt"><i class="bi bi-calendar2"></i><p>Select Refresh seats to load available dates and batches.</p></div>
             <div class="slot-groups d-none" id="slotGroups">
               <section>
                 <div class="group-title"><span><i class="bi bi-sunrise"></i>Morning batches</span><small id="morningCapacityLabel">60 clients/hour · 10 laptops · 10-minute turns</small></div>
@@ -682,7 +681,7 @@
 
   <!-- Reschedule -->
   <div class="modal fade" id="rescheduleModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow">CHANGE SCHEDULE</span><h2 class="modal-title">Choose another available batch</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="date-grid" id="rescheduleDateGrid"></div><div class="slot-groups mt-3 d-none" id="rescheduleSlotGroups"><section><div class="group-title"><span><i class="bi bi-sunrise"></i>Morning</span></div><div class="slot-grid" id="rescheduleMorningSlots"></div></section><section><div class="group-title"><span><i class="bi bi-sunset"></i>Afternoon</span></div><div class="slot-grid" id="rescheduleAfternoonSlots"></div></section></div></div><div class="modal-footer"><div class="me-auto"><small>New schedule</small><strong class="d-block" id="rescheduleChoice">Select a date and batch</strong></div><button class="btn btn-primary" id="confirmRescheduleButton" type="button" disabled>Save new schedule</button></div></div></div>
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><div><span class="eyebrow">CHANGE SCHEDULE</span><h2 class="modal-title">Choose another available batch</h2></div><button class="btn-close" type="button" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="availability-toolbar mb-3"><div><span class="availability-dot" aria-hidden="true"></span><strong>Load seats when you are ready</strong><small>Google Sheets is read only when you select Refresh seats.</small></div><button class="btn btn-soft-primary btn-sm" id="refreshRescheduleAvailabilityButton" type="button"><i class="bi bi-arrow-clockwise me-1"></i>Refresh seats</button></div><div class="date-grid" id="rescheduleDateGrid"></div><div class="slot-groups mt-3 d-none" id="rescheduleSlotGroups"><section><div class="group-title"><span><i class="bi bi-sunrise"></i>Morning</span></div><div class="slot-grid" id="rescheduleMorningSlots"></div></section><section><div class="group-title"><span><i class="bi bi-sunset"></i>Afternoon</span></div><div class="slot-grid" id="rescheduleAfternoonSlots"></div></section></div></div><div class="modal-footer"><div class="me-auto"><small>New schedule</small><strong class="d-block" id="rescheduleChoice">Select a date and batch</strong></div><button class="btn btn-primary" id="confirmRescheduleButton" type="button" disabled>Save new schedule</button></div></div></div>
   </div>
 
   <!-- Message facilitator -->
@@ -723,6 +722,6 @@
 
   <script src="vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.3"></script>
   <script src="vendor/qrcode/qrcode.min.js?v=1"></script>
-  <script src="script.js?v=23"></script>
+  <script src="script.js?v=25"></script>
 </body>
 </html>
