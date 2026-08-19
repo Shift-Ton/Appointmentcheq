@@ -1,10 +1,11 @@
 /* Wadhwani Registration V21 service worker — Vercel proxy UI shell */
-const APP_VERSION = 'wadhwani-v24-vercel-proxy';
+const APP_VERSION = 'wadhwani-v25-manual-refresh';
 const SHELL_CACHE = `${APP_VERSION}-shell`;
+const ENABLE_BACKGROUND_PUSH = false;
 const APP_SHELL = [
   './',
   './index.html',
-  './script.js?v=23',
+  './script.js?v=25',
   './style.css?v=23',
   './favicon.svg?v=1',
   './vendor/bootstrap/bootstrap.min.css?v=5.3.3',
@@ -15,10 +16,11 @@ const APP_SHELL = [
 ];
 let firebaseMessagingReady = false;
 
+if (ENABLE_BACKGROUND_PUSH) {
 try {
   importScripts('./firebase-config.js');
   const pushConfig = self.WADHWANI_FIREBASE || null;
-  if (pushConfig?.enabled && pushConfig.config?.projectId && pushConfig.config?.messagingSenderId && pushConfig.config?.appId) {
+  if (ENABLE_BACKGROUND_PUSH && pushConfig?.enabled && pushConfig.config?.projectId && pushConfig.config?.messagingSenderId && pushConfig.config?.appId) {
     const sdkVersion = pushConfig.sdkVersion || '12.17.1';
     importScripts(`https://www.gstatic.com/firebasejs/${sdkVersion}/firebase-app-compat.js`);
     importScripts(`https://www.gstatic.com/firebasejs/${sdkVersion}/firebase-messaging-compat.js`);
@@ -51,6 +53,7 @@ try {
   }
 } catch (error) {
   console.warn('Wadhwani Firebase background messaging is not configured yet:', error?.message || error);
+}
 }
 
 self.addEventListener('install', event => {
@@ -130,8 +133,8 @@ self.addEventListener('notificationclick', event => {
   })());
 });
 
-/* If Firebase is not configured, no closed-app remote push can be received.
- * The foreground/local 10-minute alarm in script.js continues to work. */
+/* Remote background push is disabled in manual-refresh mode. Local browser
+ * schedule alarms in script.js continue to work without a Sheet request. */
 self.addEventListener('message', event => {
   if (event.data?.type === 'WADHWANI_PUSH_STATUS' && event.source?.postMessage) {
     event.source.postMessage({
