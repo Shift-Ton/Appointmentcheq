@@ -31,7 +31,7 @@
   let SESSION_MINUTES = 10;
   let CAPACITY = 60;
   // Keep room on an hourly printout for walk-in/manual registrations without adding another sheet.
-  const HOURLY_PRINT_MIN_ROWS = 12;
+  const HOURLY_PRINT_MIN_ROWS = 10;
   let TEST_TODAY_DATE = '';
   let availabilityIndex = new Map();
   let serverClockOffset = 0;
@@ -2810,23 +2810,24 @@ function printRegistrationSheet() {
   <meta charset="utf-8">
   <title>Wadhwani Registration · ${escapeHtml(scopeLabel)}</title>
   <style>
-    @page { size: 13in 8.5in; margin: .55in .60in .65in; }
+    @page { size: 13in 8.5in; margin: .45in .50in .55in; }
     * { box-sizing: border-box; }
-    body { margin: 0; color: #111; font: 10px/1.4 Arial, sans-serif; }
-    header { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: end; padding: 0 0 11px; border-bottom: 2px solid #145f4f; }
-    h1 { margin: 2px 0 0; font-size: 18px; color: #145f4f; }
-    h2 { margin: 3px 0 0; font-size: 12px; }
-    .office { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .meta { text-align: right; }
+    body { margin: 0; color: #111; font: 11pt/1.3 Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 18px; align-items: end; padding: 0 0 10px; border-bottom: 2px solid #145f4f; }
+    h1 { margin: 2px 0 0; font-size: 20pt; line-height: 1.15; color: #145f4f; }
+    h2 { margin: 3px 0 0; font-size: 12pt; line-height: 1.2; }
+    .office { font-size: 9pt; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+    .meta { text-align: right; font-size: 9.5pt; line-height: 1.3; }
     .meta strong, .meta span { display: block; }
-    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 12px 0; }
-    .summary div { min-height: 38px; padding: 6px 8px; border: 1px solid #b8c7c2; border-radius: 5px; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 10px 0; }
+    .summary div { min-height: 44px; padding: 7px 9px; border: 1px solid #b8c7c2; border-radius: 5px; }
     .summary small, .summary strong { display: block; }
-    .summary small { color: #53655f; font-size: 8px; text-transform: uppercase; }
+    .summary small { color: #53655f; font-size: 8pt; text-transform: uppercase; }
+    .summary strong { font-size: 10.5pt; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     thead { display: table-header-group; }
-    th { padding: 6px 4px; border: 1px solid #53655f; color: #fff; background: #145f4f; font-size: 8px; text-transform: uppercase; }
-    td { height: 32px; padding: 5px 4px; border: 1px solid #8e9b97; vertical-align: middle; overflow-wrap: anywhere; }
+    th { padding: 7px 5px; border: 1px solid #53655f; color: #0d4f41; background: #e5f0ec; font-size: 8.5pt; font-weight: 700; line-height: 1.15; text-transform: uppercase; }
+    td { height: 37px; padding: 6px 5px; border: 1px solid #8e9b97; font-size: 9.5pt; line-height: 1.22; vertical-align: middle; overflow-wrap: anywhere; }
     tbody tr:nth-child(even) { background: #f4f8f6; }
     .center { text-align: center; }
     .name { font-weight: 700; }
@@ -2838,8 +2839,8 @@ function printRegistrationSheet() {
     th:nth-child(5) { width: 20%; }
     th:nth-child(6) { width: 12%; }
     th:nth-child(7) { width: 18%; }
-    footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-top: 15px; padding-top: 11px; border-top: 1px solid #8e9b97; }
-    .signoff { width: 270px; padding-top: 26px; border-bottom: 1px solid #111; }
+    footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-top: 13px; padding-top: 10px; border-top: 1px solid #8e9b97; font-size: 9.5pt; }
+    .signoff { width: 270px; padding-top: 28px; border-bottom: 1px solid #111; }
     .print-note { max-width: 520px; color: #4e5e59; }
   </style>
 </head>
