@@ -12,6 +12,7 @@ const ALLOWED_ACTIONS = new Set([
   'checkRegistrationIdentity',
   'registerStudent',
   'getStudentNotificationState',
+  'getStudentSelfState',
   'rescheduleStudent',
   'submitStudentResponse',
   'sendRescheduleMessage',
