@@ -1,10 +1,10 @@
 /* Wadhwani Registration V21 service worker — Vercel proxy UI shell */
-const APP_VERSION = 'wadhwani-v23-vercel-proxy';
+const APP_VERSION = 'wadhwani-v24-vercel-proxy';
 const SHELL_CACHE = `${APP_VERSION}-shell`;
 const APP_SHELL = [
   './',
   './index.html',
-  './script.js?v=22',
+  './script.js?v=23',
   './style.css?v=23',
   './favicon.svg?v=1',
   './vendor/bootstrap/bootstrap.min.css?v=5.3.3',
