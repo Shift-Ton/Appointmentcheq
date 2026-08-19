@@ -699,7 +699,7 @@
   /* ================== BROWSER NOTIFICATIONS: BEGIN ================== */
   function initializeBrowserNotificationFeature() {
     if ('serviceWorker' in navigator && window.isSecureContext) {
-      navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' }).then(registration => {
+      navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' }).then(registration => {
         serviceWorkerRegistration = registration;
         registration.update().catch(() => {});
       }).catch(error => console.warn('Notification service worker registration failed:', error.message));
