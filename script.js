@@ -8,9 +8,16 @@
    */
   const API_PROXY_ENDPOINT = '/api/backend';
   const API_TIMEOUT_MS = 60000;
-  // Poll less often to reduce Apps Script executions while keeping ticket updates timely.
-  const STUDENT_REMINDER_CHECK_MS = 300000;
-  const REMINDER_CHECK_JITTER_MS = 2500;
+  // Google Sheets is read only after a user deliberately chooses a Refresh
+  // control. Browser-only reminders remain available without polling.
+  const ENABLE_BACKGROUND_PUSH = false;
+  const DEFAULT_COLLEGES = Object.freeze({
+    'College of Arts and Sciences': [],
+    'College of Business and Accountancy': [],
+    'College of Education': [],
+    'College of Engineering and Technology': [],
+    'College of Computing Multimedia Arts and Digital Innovation': []
+  });
   // Registration and ticket views are supported on phones, tablets, laptops, and wide desktops.
   const STUDENT_MAX_VIEWPORT_WIDTH = Number.POSITIVE_INFINITY;
   const SCHEDULE_REMINDER_MINUTES = 10;
@@ -27,7 +34,7 @@
   let EVENT_DATES = [];
   let OPEN_EVENT_DATES = [];
   let TIME_SLOTS = [];
-  let COLLEGES = {};
+  let COLLEGES = { ...DEFAULT_COLLEGES };
   let LAPTOP_COUNT = 10;
   let SESSION_MINUTES = 10;
   let CAPACITY = 60;
@@ -51,7 +58,6 @@
   let volumePromptShown = false;
   let studentBlockedTarget = 'home';
   let viewportResizeTimer = null;
-  let facSelectionRequestSerial = 0;
   let activeFacView = 'appointments';
   let previousFacView = 'appointments';
   let appointmentSettingsDates = [];
@@ -76,8 +82,6 @@
   let studentIdVisible = true;
   let studentLiveTimer = null;
   let facilitatorLiveTimer = null; // facilitator auto-refresh is intentionally disabled
-  let studentLiveSyncInFlight = false;
-  let facilitatorLiveSyncInFlight = false;
   let facSelectionTouched = false;
   let recentStudentBatchIds = new Set();
   let recentFacilitatorIds = new Set();
@@ -112,25 +116,13 @@
     initializeMessengerBrowserFeature();
     initializeBrowserNotificationFeature();
     bindEvents();
+    populateColleges();
     updateSoundButton();
     setPortalControls('none');
-    setLoading(true, 'Reading the newest schedule and ticket information…', 'Connecting');
-
-    try {
-      if (!navigator.onLine) {
-        showOfflineModal();
-        return;
-      }
-      await refreshPublicConfig();
-      populateColleges();
-      hideOfflineModal();
-      if (!isBrowserInstructionActive()) await autoRoute();
-    } catch (error) {
-      if (isNetworkFailure(error)) showOfflineModal();
-      else showFatalError(error);
-    } finally {
-      setLoading(false);
-    }
+    // Do not read the public Sheet snapshot on page open. Schedule and
+    // dashboard data are deliberately loaded only by their Refresh controls.
+    setLoading(false);
+    if (!isBrowserInstructionActive()) showLogin(true);
   }
 
   /* ================= VERCEL SAME-ORIGIN API CONNECTION: BEGIN =================
@@ -312,9 +304,17 @@
   async function refreshStudentData(silent = true) {
     const studentIdNumber = normalizeStudentId(activeStudentId || currentStudent?.studentIdNumber || getRememberedStudentId() || '');
     if (!isValidStudentId(studentIdNumber)) return false;
+    // Older code calls this in silent mode after lifecycle events. Preserve
+    // the current screen but reserve Sheet reads for the visible Refresh
+    // ticket button, which calls this function with false.
+    if (silent) {
+      if (currentStudent) renderStudentHome();
+      setLiveSyncState('idle', 'Manual refresh only');
+      return Boolean(currentStudent);
+    }
 
     const load = async () => {
-      const result = await server('getStudentNotificationState', studentIdNumber);
+      const result = await server('getStudentSelfState', studentIdNumber);
       if (!result.student) {
         clearStudentSession({ forgetDevice: true });
         if (!silent) toast('Registration not found', 'This Student ID is no longer in the database.');
@@ -323,10 +323,11 @@
       }
       if (result.serverNow) serverClockOffset = new Date(result.serverNow).getTime() - Date.now();
       currentStudent = normalizeStudentRecord(result.student);
+      studentBatch = Array.isArray(result.batch) ? result.batch.map(normalizeBatchMember) : studentBatch;
       activeStudentId = currentStudent.studentIdNumber;
       rememberStudentId(activeStudentId);
       showStudentHome();
-      setLiveSyncState('connected', `Ticket checked ${formatSyncClock()}`);
+      setLiveSyncState('connected', `Updated ${formatSyncClock()}`);
       hideOfflineModal();
       if (!silent) toast('Ticket updated', 'Your latest registration status is now displayed.');
       return true;
@@ -372,6 +373,13 @@
   async function refreshFacilitatorData(silent = true) {
     const token = getFacilitatorToken();
     if (!token) return false;
+    // Calls using the old silent mode used to be background refreshes after
+    // other actions. Keep their local UI update but do not read Sheets.
+    if (silent) {
+      renderFacilitator();
+      setLiveSyncState('idle', 'Manual refresh only');
+      return true;
+    }
 
     const load = async () => {
       const data = await server('getFacilitatorState', token, getDeviceId());
@@ -412,79 +420,26 @@
 
   function startStudentLiveSync() {
     stopLiveSync();
-    setLiveSyncState('idle', 'Status and schedule reminders active');
-    scheduleStudentLiveSync(1200);
+    setLiveSyncState('idle', 'Manual refresh only');
     startScheduleReminderWatch();
   }
 
   function startFacilitatorLiveSync() {
     stopLiveSync();
-    setLiveSyncState('idle', 'Date changes load latest records');
+    setLiveSyncState('idle', 'Manual refresh only');
   }
 
-  function scheduleStudentLiveSync(delay = STUDENT_REMINDER_CHECK_MS + Math.floor(Math.random() * REMINDER_CHECK_JITTER_MS)) {
-    if (studentLiveTimer) window.clearTimeout(studentLiveTimer);
-    studentLiveTimer = window.setTimeout(runStudentLiveSync, delay);
+  function scheduleStudentLiveSync() {
+    // Intentionally empty. Background Sheet polling is disabled.
   }
 
   function scheduleFacilitatorLiveSync() {
     // No background facilitator refresh. Refresh only on an explicit user action.
   }
 
-  async function runStudentLiveSync() {
+  function runStudentLiveSync() {
+    // Retained for older cached callers. Sheet polling is intentionally off.
     studentLiveTimer = null;
-    if (!isStudentPortalActive() || !currentStudent || currentStudent.status === 'completed') return;
-    if (document.hidden || studentLiveSyncInFlight) {
-      scheduleStudentLiveSync();
-      return;
-    }
-
-    studentLiveSyncInFlight = true;
-    try {
-      const result = await server('getStudentNotificationState', currentStudent.studentIdNumber);
-      if (!result.student) {
-        clearStudentSession({ forgetDevice: true });
-        showLogin(true);
-        toast('Registration unavailable', 'Your saved Student ID is no longer in the database.');
-        return;
-      }
-
-      if (result.serverNow) serverClockOffset = new Date(result.serverNow).getTime() - Date.now();
-      const incoming = normalizeStudentRecord(result.student);
-      const previousCalledAt = String(currentStudent.calledAt || '');
-      const ownRecordChanged = [
-        'status', 'calledAt', 'reminderResponse', 'respondedAt',
-        'ongoingAt', 'completedAt', 'noShowAt', 'rescheduledAt', 'updatedAt',
-        'date', 'slotId'
-      ].some(key => String(incoming[key] || '') !== String(currentStudent[key] || ''));
-
-      currentStudent = incoming;
-      activeStudentId = incoming.studentIdNumber;
-      rememberStudentId(activeStudentId);
-      renderStudentHome();
-      if (currentStudent.status === 'completed') {
-        stopReminderAlarm();
-        stopScheduleReminderAlarm();
-        clearSystemNotifications();
-      } else {
-        checkScheduleReminderWindow();
-      }
-
-      if (ownRecordChanged) {
-        setLiveSyncState('connected', `Ticket updated ${formatSyncClock()}`);
-        if (currentStudent.calledAt && String(currentStudent.calledAt) !== previousCalledAt) {
-          toast('Facilitator reminder received', `${currentStudent.queueNumber} is being called.`);
-        }
-      } else {
-        setLiveSyncState('idle', `Ticket checked ${formatSyncClock()}`);
-      }
-    } catch (error) {
-      console.warn('Student ticket check failed:', error.message);
-      setLiveSyncState(navigator.onLine ? 'warning' : 'offline', navigator.onLine ? 'Ticket check retrying…' : 'Offline');
-    } finally {
-      studentLiveSyncInFlight = false;
-      if (currentStudent && currentStudent.status !== 'completed' && isStudentPortalActive()) scheduleStudentLiveSync();
-    }
   }
 
   async function runFacilitatorLiveSync() {
@@ -526,7 +481,7 @@
     if (document.hidden) {
       if (currentStudent && isStudentPortalActive()) studentSessionBackgrounded = true;
       if (!navigator.onLine) setLiveSyncState('offline', 'Offline');
-      else if (currentStudent && currentStudent.status !== 'completed') setLiveSyncState('idle', 'Background reminders armed');
+      else if (currentStudent && currentStudent.status !== 'completed') setLiveSyncState('idle', 'Manual refresh only');
       return;
     }
 
@@ -535,23 +490,16 @@
       return;
     }
 
-    if (studentSessionBackgrounded) {
-      studentSessionBackgrounded = false;
-      if (currentStudent) {
-        setLiveSyncState('syncing', 'Checking your latest status…');
-        refreshStudentData(true).catch(error => console.warn('Return-to-app refresh failed:', error.message));
-      } else if (getRememberedStudentId()) {
-        autoRoute().catch(error => console.warn('Remembered student restore failed:', error.message));
-      }
-    }
+    // Returning to a tab must not trigger a Google Sheets read.
+    studentSessionBackgrounded = false;
 
     if (isStudentPortalActive() && currentStudent && currentStudent.status !== 'completed') {
-      setLiveSyncState('idle', 'Status and schedule reminders active');
+      setLiveSyncState('idle', 'Manual refresh only');
       scheduleStudentLiveSync(250);
       checkScheduleReminderWindow();
     }
     if (!$('#facilitatorScreen')?.classList.contains('d-none') && getFacilitatorToken()) {
-      setLiveSyncState('idle', 'Date changes load latest records');
+      setLiveSyncState('idle', 'Manual refresh only');
     }
   }
 
@@ -699,7 +647,7 @@
   /* ================== BROWSER NOTIFICATIONS: BEGIN ================== */
   function initializeBrowserNotificationFeature() {
     if ('serviceWorker' in navigator && window.isSecureContext) {
-      navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' }).then(registration => {
+      navigator.serviceWorker.register('./sw.js?v=25', { updateViaCache: 'none' }).then(registration => {
         serviceWorkerRegistration = registration;
         registration.update().catch(() => {});
       }).catch(error => console.warn('Notification service worker registration failed:', error.message));
@@ -751,6 +699,7 @@
   }
 
   function isFirebasePushConfigured() {
+    if (!ENABLE_BACKGROUND_PUSH) return false;
     const config = globalThis.WADHWANI_FIREBASE;
     return Boolean(
       config?.enabled &&
@@ -909,14 +858,11 @@
       $(selector)?.addEventListener('input', clearNameCheckFeedback);
     });
     $('#studentIdNumber')?.addEventListener('input', formatStudentIdField);
-    $('#studentIdNumber')?.addEventListener('blur', () => checkRegistrationIdentityLive('id'));
-    ['#firstName', '#middleName', '#lastName'].forEach(selector => {
-      $(selector)?.addEventListener('blur', () => checkRegistrationIdentityLive('name'));
-    });
     $('#editDetailsButton').addEventListener('click', showDetailsStep);
     $('#confirmRegistrationButton').addEventListener('click', confirmRegistration);
     $('#rescheduleButton').addEventListener('click', openReschedule);
     $('#refreshAvailabilityButton').addEventListener('click', () => refreshScheduleAvailability(false));
+    $('#refreshRescheduleAvailabilityButton')?.addEventListener('click', () => openReschedule(true));
     $('#confirmRescheduleButton').addEventListener('click', confirmReschedule);
     $('#refreshStudentTopButton').addEventListener('click', () => refreshStudentData(false));
     $('#callAlertResponseGrid').addEventListener('click', handleStudentResponse);
@@ -981,13 +927,20 @@
       const result = await server('resolveLoginId', studentIdNumber);
       hideOfflineModal();
       pendingLoginId = studentIdNumber;
-      if (result.role === 'student' && result.dashboard?.student) {
-        applyStudentDashboard(result.dashboard);
+      if (result.role === 'student' && (result.dashboard?.student || result.student)) {
+        if (result.dashboard?.student) {
+          applyStudentDashboard(result.dashboard);
+        } else {
+          currentStudent = normalizeStudentRecord(result.student);
+          studentBatch = [];
+          studentAvailableSlots = [];
+          if (result.serverNow) serverClockOffset = new Date(result.serverNow).getTime() - Date.now();
+        }
         activeStudentId = currentStudent.studentIdNumber;
         rememberStudentId(activeStudentId);
         studentSessionBackgrounded = false;
         showStudentHome();
-        toast('Login successful', `Welcome back, ${currentStudent.firstName}.`);
+        toast('Login successful', `Welcome back, ${currentStudent.firstName}. Use Refresh ticket to load the latest details.`);
         return;
       }
       if (result.role === 'facilitator') {
@@ -1060,11 +1013,11 @@
     try {
       const session = await server('loginFacilitator', facilitatorId, password, getDeviceId());
       saveFacilitatorToken(session.token);
-      const data = await server('getFacilitatorState', session.token, getDeviceId());
-      applyFacilitatorState(data);
+      currentFacilitator = session.facilitator || { id: facilitatorId, email: facilitatorId, name: 'Facilitator' };
+      state = { students: [], messages: [] };
       hideOfflineModal();
       showFacilitator(currentFacilitator);
-      toast('Facilitator login successful', 'The newest registrations are now displayed.');
+      toast('Facilitator login successful', 'Select Refresh all to load registrations from Google Sheets.');
       $('#facilitatorPassword').value = '';
     } catch (error) {
       clearFacilitatorSession();
@@ -1264,14 +1217,8 @@
       if (!navigator.onLine) throw new Error('The device is still offline.');
       await server('ping');
       hideOfflineModal();
-      if (facilitatorToken && currentFacilitator) await refreshFacilitatorData(true);
-      else if (activeStudentId && currentStudent) await refreshStudentData(true);
-      else if (getRememberedStudentId()) await autoRoute();
-      else {
-        await refreshPublicConfig();
-        populateColleges();
-      }
-      toast('Connection restored', 'The latest database records are available again.');
+      setLiveSyncState('idle', 'Manual refresh only');
+      toast('Connection restored', 'Use the Refresh button when you are ready to load current records.');
     } catch (error) {
       showOfflineModal(error.message || 'The database is still unreachable. Check Wi-Fi or mobile data, then try again.');
     } finally {
@@ -1283,57 +1230,26 @@
   async function handlePageShowFresh(event) {
     if (!event.persisted) return;
     const oldToken = facilitatorToken;
-    const oldDeviceId = deviceId;
 
     try {
       if (oldToken) {
         resetPortalAudio();
         clearFacilitatorSession();
         deviceId = makeId();
-        server('logoutFacilitator', oldToken, oldDeviceId).catch(() => {});
+        // Do not make a background server call when a cached page returns.
       }
-      await refreshPublicConfig();
       populateColleges();
-      if (getRememberedStudentId()) await autoRoute();
-      else if (!isBrowserInstructionActive()) showLogin(true);
+      if (!isBrowserInstructionActive()) showLogin(true);
     } catch (error) {
       if (isNetworkFailure(error)) showOfflineModal();
     }
   }
 
   async function autoRoute() {
-    const rememberedStudentId = getRememberedStudentId();
-    if (!isValidStudentId(rememberedStudentId)) {
-      showLogin(true);
-      return false;
-    }
-
-    try {
-      const result = await server('getStudentNotificationState', rememberedStudentId);
-      if (!result?.student) {
-        clearStudentSession({ forgetDevice: true });
-        showLogin(true);
-        toast('Registration not found', 'The remembered Student ID is no longer registered.');
-        return false;
-      }
-
-      if (result.serverNow) serverClockOffset = new Date(result.serverNow).getTime() - Date.now();
-      currentStudent = normalizeStudentRecord(result.student);
-      activeStudentId = currentStudent.studentIdNumber;
-      rememberStudentId(activeStudentId);
-      studentSessionBackgrounded = false;
-      showStudentHome();
-      hideOfflineModal();
-      return true;
-    } catch (error) {
-      if (isNetworkFailure(error)) {
-        showOfflineModal();
-        return false;
-      }
-      console.warn('Automatic ticket restore failed:', error.message);
-      showLogin(true);
-      return false;
-    }
+    // Automatic remembered-ticket restoration is disabled in manual-refresh
+    // mode, so this compatibility function never queries Google Sheets.
+    showLogin(true);
+    return false;
   }
 
   function showOnly(id) {
@@ -1488,7 +1404,22 @@
     selectedSlot = null;
     renderPendingSummary();
     $('#selectionBar').classList.add('d-none');
-    await refreshScheduleAvailability(true);
+    if (EVENT_DATES.length) {
+      renderRegistrationDates();
+      if (selectedDate) {
+        renderSlotsForDate(selectedDate, $('#morningSlots'), $('#afternoonSlots'), chooseRegistrationSlot, selectedSlot);
+        $('#datePrompt').classList.add('d-none');
+        $('#slotGroups').classList.remove('d-none');
+      }
+      $('#availabilityStatusText').textContent = 'Showing the last manually loaded seats';
+      $('#availabilityUpdatedText').textContent = 'Use Refresh seats to check Google Sheets again';
+      return;
+    }
+    $('#dateGrid').innerHTML = '';
+    $('#slotGroups').classList.add('d-none');
+    $('#datePrompt').classList.remove('d-none');
+    $('#availabilityStatusText').textContent = 'Seat availability has not been loaded yet';
+    $('#availabilityUpdatedText').textContent = 'Select Refresh seats to load Google Sheets';
   }
 
   async function refreshScheduleAvailability(initialOpen = false) {
@@ -1739,32 +1670,10 @@
     };
 
     const submitButton = form.querySelector('[type="submit"]');
-    setButtonBusy(submitButton, true, 'Checking registration…');
+    setButtonBusy(submitButton, true, 'Opening schedule…');
     try {
-      const identity = await checkRegistrationIdentityCompat(candidate);
-      if (identity.idExists || identity.nameExists) {
-        const message = identity.message || 'A registration already exists for this Student ID or full name. Please sign in instead.';
-        showNameCheckFeedback(message);
-        showExistingRegistrationModal(message);
-        return;
-      }
-
-      const result = identity.eligibility || await server('checkStudentEligibility', candidate);
-      if (result.status === 'existing') {
-        const message = 'This Student ID is already registered. Please sign in to open the existing ticket.';
-        showNameCheckFeedback(message);
-        showExistingRegistrationModal(message);
-        return;
-      }
-
-      if (result.status === 'duplicate_name') {
-        const message = result.message || 'A registration with this full name already exists. Please verify the Student ID or ask the CARES Office for assistance.';
-        showNameCheckFeedback(message);
-        showExistingRegistrationModal(message);
-        toast('Name already registered', message);
-        return;
-      }
-
+      // Duplicate and capacity checks happen atomically when Save registration
+      // is selected. Opening this local schedule step must not read Sheets.
       clearNameCheckFeedback();
       pendingStudent = candidate;
       await showScheduleStep();
@@ -1885,7 +1794,8 @@
       showStudentHome();
     } catch (error) {
       toast('Registration failed', error.message);
-      await refreshPublicConfig();
+      // Keep the last manually loaded availability; do not re-read Sheets
+      // after an error. The user can choose Refresh seats if needed.
       renderRegistrationDates();
       if (selectedDate) renderSlotsForDate(selectedDate, $('#morningSlots'), $('#afternoonSlots'), chooseRegistrationSlot, selectedSlot);
     } finally {
@@ -2034,8 +1944,20 @@
     await applyReschedule(date, slotId);
   }
 
-  async function openReschedule() {
+  async function openReschedule(forceRefresh = false) {
     if (!currentStudent || ['ongoing', 'completed'].includes(currentStudent.status)) return;
+    if (!forceRefresh) {
+      rescheduleDate = null;
+      rescheduleSlot = null;
+      $('#confirmRescheduleButton').disabled = true;
+      $('#rescheduleChoice').textContent = EVENT_DATES.length
+        ? 'Select a date and batch'
+        : 'Select Refresh seats to load available batches';
+      $('#rescheduleSlotGroups').classList.add('d-none');
+      renderRescheduleDates();
+      showModal('rescheduleModal');
+      return;
+    }
     try {
       await withProcessLoading('Checking reschedule options', 'Looking for available dates and time slots…', refreshPublicConfig);
     } catch (error) {
@@ -2150,7 +2072,7 @@
         return;
       }
       if (getRememberedStudentId()) {
-        await autoRoute();
+        showLogin(true);
         return;
       }
       showLogin(true);
@@ -2183,10 +2105,8 @@
     showModal('scannerModal');
   }
 
-  async function refreshFacilitatorSelection(selection = {}) {
-    const token = getFacilitatorToken();
-    if (!token) return;
-    const requestId = ++facSelectionRequestSerial;
+  function refreshFacilitatorSelection(selection = {}) {
+    if (!getFacilitatorToken()) return;
     const requestedDate = normalizeDateKey(selection.date || facDate);
     const requestedPart = String(selection.part || facPart || 'morning');
     const requestedSlot = normalizeSlotId(selection.slot || facSlot);
@@ -2197,35 +2117,8 @@
     else if (selection.part) facSlot = TIME_SLOTS.find(slot => slot.part === facPart)?.id || '';
     facSelectionTouched = true;
     closeSelectedStudentSheet();
-    document.body.classList.add('fac-selection-loading');
-    setLiveSyncState('syncing', 'Fetching latest data…');
-
-    try {
-      const data = await server('getFacilitatorState', token, getDeviceId());
-      if (requestId !== facSelectionRequestSerial) return;
-      applyFacilitatorState(data);
-      if (requestedDate && EVENT_DATES.includes(requestedDate)) facDate = requestedDate;
-      facPart = requestedPart;
-      if (selection.slot && getSlot(requestedSlot)?.part === facPart) facSlot = requestedSlot;
-      else if (!getSlot(facSlot) || getSlot(facSlot).part !== facPart) facSlot = TIME_SLOTS.find(slot => slot.part === facPart)?.id || '';
-      renderFacilitator();
-      setLiveSyncState('connected', `Updated ${formatSyncClock()}`);
-      hideOfflineModal();
-    } catch (error) {
-      if (requestId === facSelectionRequestSerial) {
-        if (/session|facilitator account/i.test(error.message)) {
-          clearFacilitatorSession();
-          showLogin(true);
-          toast('Session ended', 'Please sign in again.');
-        } else {
-          setLiveSyncState('warning', 'Refresh failed');
-          toast('Unable to refresh selection', error.message);
-          if (isNetworkFailure(error)) showOfflineModal();
-        }
-      }
-    } finally {
-      if (requestId === facSelectionRequestSerial) document.body.classList.remove('fac-selection-loading');
-    }
+    renderFacilitator();
+    setLiveSyncState('idle', 'Manual refresh only');
   }
 
   function renderFacilitator() {
