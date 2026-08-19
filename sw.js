@@ -1,20 +1,17 @@
 /* Wadhwani Registration V21 service worker — Vercel proxy UI shell */
-const APP_VERSION = 'wadhwani-v21-vercel-proxy';
+const APP_VERSION = 'wadhwani-v23-vercel-proxy';
 const SHELL_CACHE = `${APP_VERSION}-shell`;
 const APP_SHELL = [
   './',
   './index.html',
-  './script.js',
-  './style.css',
-  './sw.js',
-  './firebase-config.js',
-  './favicon.svg',
-  './vendor/bootstrap/bootstrap.min.css',
-  './vendor/bootstrap/bootstrap.bundle.min.js',
-  './vendor/bootstrap-icons/bootstrap-icons.min.css',
-  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff2',
-  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff',
-  './vendor/qrcode/qrcode.min.js'
+  './script.js?v=22',
+  './style.css?v=23',
+  './favicon.svg?v=1',
+  './vendor/bootstrap/bootstrap.min.css?v=5.3.3',
+  './vendor/bootstrap/bootstrap.bundle.min.js?v=5.3.3',
+  './vendor/bootstrap-icons/bootstrap-icons.min.css?v=1.11.3',
+  './vendor/bootstrap-icons/fonts/bootstrap-icons.woff2?dd67030699838ea613ee6dbda90effa6',
+  './vendor/qrcode/qrcode.min.js?v=1'
 ];
 let firebaseMessagingReady = false;
 
@@ -92,18 +89,19 @@ self.addEventListener('fetch', event => {
 
   event.respondWith((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    const cacheKey = new Request(url.origin + url.pathname);
+    const cacheKey = new Request(url.href);
     try {
       const response = await fetch(request);
-      if (response && (response.ok || response.type === 'opaque')) {
+      const shouldCache = !['/sw.js', '/firebase-config.js'].includes(url.pathname);
+      if (shouldCache && response && (response.ok || response.type === 'opaque')) {
         try { await cache.put(cacheKey, response.clone()); } catch (_) { /* keep the live response even when a response cannot be cached */ }
       }
       return response;
     } catch (_) {
-      const cached = await cache.match(cacheKey, { ignoreSearch: true }) || await caches.match(request, { ignoreSearch: true });
+      const cached = await cache.match(cacheKey);
       if (cached) return cached;
       if (request.mode === 'navigate') {
-        const shell = await cache.match('./index.html', { ignoreSearch: true }) || await cache.match('./');
+        const shell = await cache.match('./index.html') || await cache.match('./');
         if (shell) return shell;
       }
       return new Response('Offline resource unavailable.', {
